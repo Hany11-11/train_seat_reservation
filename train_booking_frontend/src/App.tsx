@@ -11,6 +11,7 @@ import SeatSelection from "./pages/SeatSelection";
 import Checkout from "./pages/Checkout";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
 // Admin pages
@@ -38,6 +39,7 @@ const App = () => (
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/login" element={<Login />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/profile" element={<Profile />} />
 
           {/* Admin Routes */}
           <Route path="/admin/login" element={<AdminLogin />} />

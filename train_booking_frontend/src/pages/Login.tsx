@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Train, LogIn } from "lucide-react";
 import { Button } from "@/components/atoms/Button";
@@ -8,16 +8,22 @@ import { useAuth } from "@/hooks/useAuth";
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, isAuthenticated, isAdmin, isLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && !isAdmin) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [isLoading, isAuthenticated, isAdmin, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const result = await login(email, password);
     if (result.success) {
-      navigate("/dashboard");
+      navigate("/dashboard", { replace: true });
     } else {
       setError(result.error || "Login failed");
     }

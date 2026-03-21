@@ -1,21 +1,23 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Train, User, LogIn } from 'lucide-react';
-import { TrainSearchForm } from '@/components/organisms/TrainSearchForm';
-import { Button } from '@/components/atoms/Button';
-import { useBooking, SearchParams } from '@/hooks/useBooking';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Train, LogIn, LogOut, User, Ticket } from "lucide-react";
+import { TrainSearchForm } from "@/components/organisms/TrainSearchForm";
+import { Button } from "@/components/atoms/Button";
+import { useBooking, SearchParams } from "@/hooks/useBooking";
+import { useAuth } from "@/hooks/useAuth";
 
 const Search = () => {
   const navigate = useNavigate();
   const { searchTrains } = useBooking();
+  const { user, isAuthenticated, isAdmin, logout } = useAuth();
 
   const handleSearch = (params: SearchParams) => {
     const results = searchTrains(params);
-    navigate('/results', { 
-      state: { 
-        searchParams: params, 
-        results 
-      } 
+    navigate("/results", {
+      state: {
+        searchParams: params,
+        results,
+      },
     });
   };
 
@@ -30,17 +32,52 @@ const Search = () => {
             </div>
             <div>
               <h1 className="font-bold text-foreground">RailBooker</h1>
-              <p className="text-xs text-muted-foreground">Sri Lanka Railways</p>
+              <p className="text-xs text-muted-foreground">
+                Sri Lanka Railways
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="ghost" onClick={() => navigate('/login')}>
-              <LogIn className="w-4 h-4 mr-2" />
-              Login
-            </Button>
-            <Button variant="outline" onClick={() => navigate('/admin/login')}>
-              Admin
-            </Button>
+            {isAuthenticated && user && !isAdmin ? (
+              <>
+                <span className="text-sm text-muted-foreground">
+                  Welcome, {user.name}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate("/dashboard")}
+                >
+                  <Ticket className="w-4 h-4 mr-2" />
+                  My Bookings
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate("/profile")}
+                >
+                  <User className="w-4 h-4 mr-2" />
+                  Profile
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => logout()}>
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="ghost" onClick={() => navigate("/login")}>
+                  <LogIn className="w-4 h-4 mr-2" />
+                  Login
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => navigate("/admin/login")}
+                >
+                  Admin
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -52,7 +89,8 @@ const Search = () => {
             Book Your Train Journey
           </h2>
           <p className="text-lg text-primary-foreground/80 mb-8 max-w-2xl mx-auto">
-            Experience seamless train booking with live seat selection across Sri Lanka's railway network
+            Experience seamless train booking with live seat selection across
+            Sri Lanka's railway network
           </p>
         </div>
       </section>
@@ -64,12 +102,26 @@ const Search = () => {
         {/* Features */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
           {[
-            { title: 'Live Seat Selection', desc: 'Choose your preferred seats in real-time' },
-            { title: 'Instant Confirmation', desc: 'Get your booking confirmed immediately' },
-            { title: 'Secure Payments', desc: 'Multiple payment options with SSL security' },
+            {
+              title: "Live Seat Selection",
+              desc: "Choose your preferred seats in real-time",
+            },
+            {
+              title: "Instant Confirmation",
+              desc: "Get your booking confirmed immediately",
+            },
+            {
+              title: "Secure Payments",
+              desc: "Multiple payment options with SSL security",
+            },
           ].map((feature, i) => (
-            <div key={i} className="bg-card rounded-xl border border-border p-6 text-center">
-              <h3 className="font-semibold text-foreground mb-2">{feature.title}</h3>
+            <div
+              key={i}
+              className="bg-card rounded-xl border border-border p-6 text-center"
+            >
+              <h3 className="font-semibold text-foreground mb-2">
+                {feature.title}
+              </h3>
               <p className="text-sm text-muted-foreground">{feature.desc}</p>
             </div>
           ))}

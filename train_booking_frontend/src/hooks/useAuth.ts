@@ -2,15 +2,26 @@ import { useState, useEffect, useCallback } from "react";
 import { User, AuthState } from "@/types/user";
 import { authService, getToken, removeToken } from "@/services/authService";
 
-export const useAuth = () => {
-  const [authState, setAuthState] = useState<AuthState>({
-    user: null,
-    isAuthenticated: false,
-    isAdmin: false,
-  });
-  const [isLoading, setIsLoading] = useState(true);
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
 
-  const checkAuth = useCallback(() => {
+  return fallback;
+};
+
+export const useAuth = () => {
+  const token = getToken();
+  const storedUser = authService.getStoredUser();
+
+  const [authState, setAuthState] = useState<AuthState>({
+    user: token ? storedUser : null,
+    isAuthenticated: Boolean(token && storedUser),
+    isAdmin: Boolean(token && storedUser?.role === "admin"),
+  });
+  const [isLoading, setIsLoading] = useState(Boolean(token));
+
+  const checkAuth = useCallback(async () => {
     const token = getToken();
     if (!token) {
       setIsLoading(false);
@@ -18,7 +29,7 @@ export const useAuth = () => {
     }
 
     try {
-      const user = authService.getMe();
+      const user = await authService.getMe();
       setAuthState({
         user,
         isAuthenticated: true,
@@ -37,36 +48,48 @@ export const useAuth = () => {
   }, []);
 
   useEffect(() => {
-    checkAuth();
+    void checkAuth();
   }, [checkAuth]);
 
   const login = useCallback(
-    (
+    async (
       email: string,
       password: string,
-    ): { success: boolean; error?: string } => {
+    ): Promise<{ success: boolean; error?: string }> => {
       try {
-        const { user } = authService.login(email, password);
+        const { user } = await authService.login(email, password);
+
+        if (user.role === "admin") {
+          authService.logout();
+          return {
+            success: false,
+            error: "Admin account detected. Please use the admin login page.",
+          };
+        }
+
         setAuthState({
           user,
           isAuthenticated: true,
-          isAdmin: user.role === "admin",
+          isAdmin: false,
         });
         return { success: true };
-      } catch (error: any) {
-        return { success: false, error: error.message || "Login failed" };
+      } catch (error: unknown) {
+        return {
+          success: false,
+          error: getErrorMessage(error, "Login failed"),
+        };
       }
     },
     [],
   );
 
   const adminLogin = useCallback(
-    (
+    async (
       email: string,
       password: string,
-    ): { success: boolean; error?: string } => {
+    ): Promise<{ success: boolean; error?: string }> => {
       try {
-        const { user } = authService.login(email, password);
+        const { user } = await authService.login(email, password);
 
         if (user.role !== "admin") {
           authService.logout();
@@ -82,8 +105,11 @@ export const useAuth = () => {
           isAdmin: true,
         });
         return { success: true };
-      } catch (error: any) {
-        return { success: false, error: error.message || "Login failed" };
+      } catch (error: unknown) {
+        return {
+          success: false,
+          error: getErrorMessage(error, "Login failed"),
+        };
       }
     },
     [],
@@ -99,25 +125,25 @@ export const useAuth = () => {
   }, []);
 
   const register = useCallback(
-    (data: {
+    async (data: {
       nic: string;
       name: string;
       email: string;
       mobile: string;
       password: string;
-    }): { success: boolean; error?: string; user?: User } => {
+    }): Promise<{ success: boolean; error?: string; user?: User }> => {
       try {
-        const { user } = authService.register(data);
+        const { user } = await authService.register(data);
         setAuthState({
           user,
           isAuthenticated: true,
           isAdmin: false,
         });
         return { success: true, user };
-      } catch (error: any) {
+      } catch (error: unknown) {
         return {
           success: false,
-          error: error.message || "Registration failed",
+          error: getErrorMessage(error, "Registration failed"),
         };
       }
     },

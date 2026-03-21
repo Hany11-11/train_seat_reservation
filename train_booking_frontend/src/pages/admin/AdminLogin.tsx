@@ -13,9 +13,9 @@ const AdminLogin = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const result = adminLogin(email, password);
+    const result = await adminLogin(email, password);
     if (result.success) {
       navigate("/admin");
     } else {
