@@ -3,7 +3,7 @@ import { BookedSeat } from '@/types/booking';
 import { seatService, CoachWithSeats, SeatAvailability } from '@/services/seatService';
 import { useToast } from './use-toast';
 
-export const useSeatSelection = (scheduleId: string, date: string, classType: string, ticketPrice: number) => {
+export const useSeatSelection = (scheduleId: string, date: string, classType: string, ticketPrice: number, maxSeats: number = Infinity) => {
   const [selectedSeats, setSelectedSeats] = useState<SeatAvailability[]>([]);
   const [activeCoachId, setActiveCoachId] = useState<string | null>(null);
   const [coaches, setCoaches] = useState<CoachWithSeats[]>([]);
@@ -57,9 +57,17 @@ export const useSeatSelection = (scheduleId: string, date: string, classType: st
       if (isSelected) {
         return prev.filter(s => s._id !== seat._id);
       }
+      if (prev.length >= maxSeats) {
+        toast({
+          title: 'Seat limit reached',
+          description: `You can only select ${maxSeats} seat${maxSeats > 1 ? 's' : ''} for ${maxSeats} passenger${maxSeats > 1 ? 's' : ''}.`,
+          variant: 'destructive',
+        });
+        return prev;
+      }
       return [...prev, seat];
     });
-  }, []);
+  }, [maxSeats, toast]);
 
   const clearSelection = useCallback(() => {
     setSelectedSeats([]);

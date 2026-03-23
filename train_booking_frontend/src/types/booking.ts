@@ -77,10 +77,17 @@ export interface BookingSearchResult {
     };
   };
   prices?: {
-    '1ST'?: number;
-    '2ND'?: number;
-    '3RD'?: number;
+    [classType: string]: {
+      price: number;
+      currency: string;
+    };
   };
+  segmentPrices?: Array<{
+    classType: string;
+    fromStation: { id: string; name: string; code: string };
+    toStation: { id: string; name: string; code: string };
+    price: number;
+  }>;
   classTypes?: string[];
   route?: Array<{
     stationId: string;

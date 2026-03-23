@@ -119,6 +119,17 @@ export const authService = {
     return user;
   },
 
+  async findByNic(nic: string): Promise<{ exists: boolean; user?: User }> {
+    const response = await apiRequest<{ success: boolean; exists: boolean; data?: { user: User } }>(
+      `/auth/users/nic/${encodeURIComponent(nic)}`,
+      { method: "GET" }
+    );
+    return {
+      exists: response.exists,
+      user: response.data?.user,
+    };
+  },
+
   logout() {
     removeToken();
   },

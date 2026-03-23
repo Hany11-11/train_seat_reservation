@@ -1,6 +1,7 @@
 import Schedule from "../models/schedule.model.js";
 import Price from "../models/price.model.js";
 import Seat from "../models/seat.model.js";
+import Availability from "../models/availability.model.js";
 
 // Create a new schedule
 export const createSchedule = async (req, res) => {
@@ -24,7 +25,7 @@ export const createSchedule = async (req, res) => {
 // Search trains by from and to stations
 export const searchTrains = async (req, res) => {
   try {
-    const { fromStationId, toStationId } = req.query;
+    const { fromStationId, toStationId, date } = req.query;
 
     if (!fromStationId || !toStationId) {
       return res.status(400).json({ 
@@ -78,35 +79,74 @@ export const searchTrains = async (req, res) => {
         const userArrivalTime = toStop?.arrivalTime || "";
         const userDuration = calculateDuration(userDepartureTime, userArrivalTime);
 
-        const prices = await Price.find({
+        const seats = await Seat.find({ 
+          train: schedule.train._id 
+        }).populate("train");
+
+        const availableClasses = [...new Set(seats.map(s => s.classType))];
+
+        const allPrices = await Price.find({
           schedule: schedule._id,
-          fromStation: fromStationObjectId,
-          toStation: toStationObjectId,
           status: "ACTIVE",
         }).populate("fromStation").populate("toStation");
 
+        const segmentPrices = allPrices.map((p) => ({
+          classType: p.classType,
+          fromStation: {
+            id: p.fromStation._id.toString(),
+            name: p.fromStation.name,
+            code: p.fromStation.code,
+          },
+          toStation: {
+            id: p.toStation._id.toString(),
+            name: p.toStation.name,
+            code: p.toStation.code,
+          },
+          price: p.price,
+        }));
+
+        const userPrice = allPrices.find((p) => 
+          p.fromStation._id.toString() === fromStationObjectId && 
+          p.toStation._id.toString() === toStationObjectId
+        );
+
         const priceByClass = {};
-        prices.forEach((p) => {
-          priceByClass[p.classType] = {
-            price: p.price,
+        availableClasses.forEach((classType) => {
+          const priceEntry = allPrices.find((p) => 
+            p.classType === classType &&
+            p.fromStation._id.toString() === fromStationObjectId && 
+            p.toStation._id.toString() === toStationObjectId
+          );
+          priceByClass[classType] = {
+            price: priceEntry ? priceEntry.price : 0,
             currency: "LKR",
           };
         });
 
-        const seats = await Seat.find({ 
-          train: schedule.train._id 
-        }).populate("train");
+        let scheduleAvailability = [];
+        if (date) {
+          scheduleAvailability = await Availability.find({
+            schedule: schedule._id,
+            date: date,
+          });
+        }
+
+        const availabilityMap = {};
+        scheduleAvailability.forEach((avail) => {
+          availabilityMap[avail.classType] = avail.availableSeats;
+        });
 
         const availability = {};
         seats.forEach((seat) => {
           if (!availability[seat.classType]) {
             availability[seat.classType] = {
               totalSeats: 0,
-              availableSeats: seat.totalSeats || 0,
+              availableSeats: 0,
               coaches: [],
             };
           }
           availability[seat.classType].totalSeats += seat.totalSeats || 0;
+          availability[seat.classType].availableSeats = availabilityMap[seat.classType] !== undefined ? availabilityMap[seat.classType] : (seat.totalSeats || 0);
           availability[seat.classType].coaches.push({
             coachName: seat.coachName,
             totalSeats: seat.totalSeats || 0,
@@ -151,8 +191,9 @@ export const searchTrains = async (req, res) => {
           },
           userDuration,
           prices: priceByClass,
+          segmentPrices: segmentPrices,
           availability,
-          classTypes: Object.keys(availability),
+          classTypes: availableClasses,
           route: schedule.route.map((r) => ({
             stationId: r.station._id.toString(),
             stationName: r.station.name,

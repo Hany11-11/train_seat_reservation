@@ -102,8 +102,14 @@ const getMe = async (userId) => {
   return toPublicUser(user);
 };
 
+const findByNic = async (nic) => {
+  const user = await userRepository.findByNic(nic);
+  return user ? toPublicUser(user) : null;
+};
+
 export default {
   register,
   login,
   getMe,
+  findByNic,
 };

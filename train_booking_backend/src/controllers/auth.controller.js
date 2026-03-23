@@ -57,3 +57,28 @@ export const me = async (req, res, next) => {
     next(error);
   }
 };
+
+export const findByNic = async (req, res, next) => {
+  try {
+    const { nic } = req.params;
+    const user = await authService.findByNic(nic);
+
+    if (!user) {
+      return res.status(200).json({
+        success: true,
+        message: "User not found",
+        data: null,
+        exists: false,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "User found",
+      data: { user },
+      exists: true,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

@@ -93,6 +93,12 @@ export interface SearchTrainResult {
       currency: string;
     };
   };
+  segmentPrices?: Array<{
+    classType: string;
+    fromStation: { id: string; name: string; code: string };
+    toStation: { id: string; name: string; code: string };
+    price: number;
+  }>;
   availability: {
     [classType: string]: {
       totalSeats: number;
@@ -118,12 +124,12 @@ export interface SearchTrainResult {
 }
 
 export const scheduleService = {
-  async searchTrains(fromStationId: string, toStationId: string): Promise<SearchTrainResult[]> {
+  async searchTrains(fromStationId: string, toStationId: string, date?: string): Promise<SearchTrainResult[]> {
     try {
       const response = await apiClient.get<{ success: boolean; count: number; data: SearchTrainResult[] }>(
         "/schedules/search",
         {
-          params: { fromStationId, toStationId },
+          params: { fromStationId, toStationId, date },
         }
       );
       return response.data.data || [];

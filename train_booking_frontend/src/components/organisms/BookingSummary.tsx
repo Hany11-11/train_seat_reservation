@@ -114,9 +114,16 @@ export const BookingSummary = ({ trainInfo, selectedClass, selectedSeats, totalA
         {/* Selected Seats */}
         {selectedSeats.length > 0 && (
           <div>
-            <div className="flex items-center gap-2 mb-3">
-              <Ticket className="w-4 h-4 text-primary" />
-              <p className="font-medium">Selected Seats</p>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Ticket className="w-4 h-4 text-primary" />
+                <p className="font-medium">Selected Seats</p>
+              </div>
+              {passengerCount && selectedSeats.length !== passengerCount && (
+                <span className="text-xs text-destructive font-medium">
+                  {selectedSeats.length}/{passengerCount} seats
+                </span>
+              )}
             </div>
             <div className="space-y-2">
               {Object.entries(seatsByClass).map(([classType, seats]) => (

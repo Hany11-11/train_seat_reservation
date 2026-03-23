@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Input } from '@/components/atoms/Input';
 import { Label } from '@/components/ui/label';
 import { PassengerDetails } from '@/types/booking';
 import { validateNIC, getNICInfo } from '@/utils/nicHelpers';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { authService } from '@/services/authService';
 
 interface CustomerFormProps {
   onSubmit: (details: PassengerDetails, isNewUser: boolean) => void;
@@ -17,23 +18,61 @@ export const CustomerForm = ({ onSubmit, initialData }: CustomerFormProps) => {
     email: initialData?.email || '',
     mobile: initialData?.mobile || '',
   });
-  const [nicStatus, setNicStatus] = useState<'idle' | 'valid' | 'invalid' | 'existing'>('idle');
+  const [nicStatus, setNicStatus] = useState<'idle' | 'valid' | 'invalid' | 'checking' | 'existing'>('idle');
   const [isNewUser, setIsNewUser] = useState(true);
   const [errors, setErrors] = useState<Partial<Record<keyof PassengerDetails, string>>>({});
+  const [isCheckingNic, setIsCheckingNic] = useState(false);
 
-  useEffect(() => {
-    if (formData.nic.length >= 10) {
-      const nicInfo = getNICInfo(formData.nic);
-      if (nicInfo.isValid) {
+  const checkExistingUser = useCallback(async (nic: string) => {
+    if (!validateNIC(nic)) {
+      setNicStatus('invalid');
+      return;
+    }
+
+    setIsCheckingNic(true);
+    setNicStatus('checking');
+
+    try {
+      const result = await authService.findByNic(nic);
+      
+      if (result.exists && result.user) {
+        setNicStatus('existing');
+        setIsNewUser(false);
+        setFormData(prev => ({
+          ...prev,
+          name: result.user?.name || '',
+          email: result.user?.email || '',
+          mobile: result.user?.mobile || '',
+        }));
+      } else {
         setNicStatus('valid');
         setIsNewUser(true);
-      } else {
-        setNicStatus('invalid');
+        setFormData(prev => ({
+          ...prev,
+          name: '',
+          email: '',
+          mobile: '',
+        }));
       }
-    } else {
-      setNicStatus('idle');
+    } catch (error) {
+      setNicStatus('valid');
+      setIsNewUser(true);
+    } finally {
+      setIsCheckingNic(false);
     }
-  }, [formData.nic]);
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (formData.nic.length >= 10) {
+        checkExistingUser(formData.nic);
+      } else {
+        setNicStatus('idle');
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [formData.nic, checkExistingUser]);
 
   const handleChange = (field: keyof PassengerDetails, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -82,19 +121,27 @@ export const CustomerForm = ({ onSubmit, initialData }: CustomerFormProps) => {
             placeholder="Enter your NIC number"
             className={errors.nic ? 'border-destructive' : ''}
           />
-          {nicStatus === 'valid' && (
+          {isCheckingNic && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+              <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+          {!isCheckingNic && nicStatus === 'valid' && (
             <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-success" />
           )}
-          {nicStatus === 'existing' && (
+          {!isCheckingNic && nicStatus === 'existing' && (
             <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-info" />
           )}
-          {nicStatus === 'invalid' && (
+          {!isCheckingNic && nicStatus === 'invalid' && (
             <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-destructive" />
           )}
         </div>
         {errors.nic && <p className="text-sm text-destructive">{errors.nic}</p>}
         {nicStatus === 'existing' && (
           <p className="text-sm text-info">Welcome back! Your details have been auto-filled.</p>
+        )}
+        {nicStatus === 'valid' && !isCheckingNic && (
+          <p className="text-sm text-muted-foreground">New user - please fill in your details</p>
         )}
       </div>
 

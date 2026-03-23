@@ -10,7 +10,7 @@ const SeatSelection = () => {
   const navigate = useNavigate();
   const { trainInfo, selectedClass, passengers } = location.state || {};
 
-  const ticketPrice = trainInfo?.prices?.[selectedClass] || 0;
+  const ticketPrice = trainInfo?.prices?.[selectedClass]?.price || 0;
 
   const {
     coaches,
@@ -24,7 +24,8 @@ const SeatSelection = () => {
     trainInfo?.scheduleId || '', 
     trainInfo?.date || '', 
     selectedClass,
-    ticketPrice
+    ticketPrice,
+    passengers
   );
 
   if (!trainInfo) {
@@ -90,10 +91,14 @@ const SeatSelection = () => {
             />
             <Button
               onClick={handleContinue}
-              disabled={selectedSeats.length === 0}
+              disabled={selectedSeats.length !== passengers}
               className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-semibold"
             >
-              Continue to Checkout
+              {selectedSeats.length === 0 
+                ? 'Select Seats to Continue' 
+                : selectedSeats.length < passengers 
+                  ? `Select ${passengers - selectedSeats.length} More Seat${passengers - selectedSeats.length > 1 ? 's' : ''}`
+                  : 'Continue to Checkout'}
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </div>

@@ -44,9 +44,8 @@ const mapSearchResultToBookingSearchResult = (
   toStationRoute: result.toStationRoute,
   userDuration: result.userDuration,
   availability: result.availability,
-  prices: Object.fromEntries(
-    Object.entries(result.prices).map(([key, value]) => [key, value.price])
-  ) as Record<string, number>,
+  prices: result.prices,
+  segmentPrices: result.segmentPrices,
   classTypes: result.classTypes,
   route: result.route,
 });
@@ -67,7 +66,8 @@ export const useBooking = () => {
       try {
         const searchResults = await scheduleService.searchTrains(
           params.fromStationId,
-          params.toStationId
+          params.toStationId,
+          params.date
         );
 
         const results = searchResults.map((result) =>

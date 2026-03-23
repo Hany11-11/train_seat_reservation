@@ -8,8 +8,8 @@ export const getSeatAvailability = async (req, res) => {
     const { scheduleId, date, classType } = req.query;
 
     if (!scheduleId || !date || !classType) {
-      return res.status(400).json({ 
-        error: "scheduleId, date, and classType are required" 
+      return res.status(400).json({
+        error: "scheduleId, date, and classType are required",
       });
     }
 
@@ -18,16 +18,16 @@ export const getSeatAvailability = async (req, res) => {
       return res.status(404).json({ error: "Schedule not found" });
     }
 
-    const coaches = await Seat.find({ 
+    const coaches = await Seat.find({
       train: schedule.train._id,
       classType: classType,
     });
 
     if (coaches.length === 0) {
-      return res.json({ 
+      return res.json({
         success: true,
         data: [],
-        message: "No coaches found for this class" 
+        message: "No coaches found for this class",
       });
     }
 
@@ -39,17 +39,20 @@ export const getSeatAvailability = async (req, res) => {
     });
 
     const bookedSeats = new Set();
-    bookings.forEach(booking => {
-      booking.seatNumbers.forEach(seat => {
+    bookings.forEach((booking) => {
+      booking.seatNumbers.forEach((seat) => {
         bookedSeats.add(seat);
       });
     });
 
-    const result = coaches.map((coach) => {
+    // Sort coaches by coachName (or another property if needed) to ensure order
+    const sortedCoaches = coaches.sort((a, b) =>
+      a.coachName.localeCompare(b.coachName),
+    );
+    let globalSeatNum = 1;
+    const result = sortedCoaches.map((coach) => {
       const seats = [];
       const seatLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-      
-      let globalSeatNum = 1;
       for (let row = 1; row <= coach.rows; row++) {
         for (let seat = 0; seat < coach.seatsPerRow; seat++) {
           const seatLetter = seatLetters[seat];
@@ -68,7 +71,6 @@ export const getSeatAvailability = async (req, res) => {
           globalSeatNum++;
         }
       }
-
       return {
         coachId: coach._id.toString(),
         coachName: coach.coachName,
@@ -77,8 +79,8 @@ export const getSeatAvailability = async (req, res) => {
         rows: coach.rows,
         seatsPerRow: coach.seatsPerRow,
         totalSeats: coach.totalSeats,
-        availableSeats: seats.filter(s => s.status === "available").length,
-        bookedSeats: seats.filter(s => s.status === "booked").length,
+        availableSeats: seats.filter((s) => s.status === "available").length,
+        bookedSeats: seats.filter((s) => s.status === "booked").length,
         seats,
       };
     });
