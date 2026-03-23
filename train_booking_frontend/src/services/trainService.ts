@@ -1,88 +1,90 @@
 import { Train } from "@/types/train";
-import { getTrainsFromStorage, saveTrainsToStorage } from "@/data/trains.mock";
+import { apiClient } from "@/lib/apiClient";
 
 export interface TrainResponse {
   success: boolean;
-  data: Train | Train[];
+  data: Train | Train[] | any;
+  message?: string;
 }
 
+interface ApiTrain {
+  _id?: string;
+  id?: string;
+  train?: string;
+  number?: string;
+  name?: string;
+  description?: string;
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+const mapApiTrainToTrain = (apiTrain: ApiTrain): Train => ({
+  id: apiTrain._id || apiTrain.id || '',
+  trainNumber: apiTrain.number || apiTrain.train || '',
+  name: apiTrain.train || apiTrain.name || '',
+  description: apiTrain.description,
+  isActive: apiTrain.isActive ?? true,
+  createdAt: apiTrain.createdAt || new Date().toISOString(),
+  updatedAt: apiTrain.updatedAt || new Date().toISOString(),
+});
+
 export const trainService = {
-  getAllTrains(): Train[] {
-    return getTrainsFromStorage();
-  },
-
-  getTrainById(id: string): Train {
-    const trains = getTrainsFromStorage();
-    const train = trains.find((t) => t.id === id);
-
-    if (!train) {
-      throw new Error("Train not found");
+  async getAllTrains(): Promise<Train[]> {
+    const response = await apiClient.get<any>('/trains');
+    console.log('Trains response:', response.data);
+    let data = response.data;
+    
+    if (data?.data) {
+      data = data.data;
     }
-
-    return train;
+    
+    if (!Array.isArray(data)) {
+      data = [data];
+    }
+    
+    return data.filter(Boolean).map((item: any) => mapApiTrainToTrain(item));
   },
 
-  createTrain(
-    train: Omit<Train, "id" | "createdAt" | "updatedAt">,
-  ): Train {
-    const trains = getTrainsFromStorage();
-    const newTrain: Train = {
-      ...train,
-      id: `t${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+  async getTrainById(id: string): Promise<Train> {
+    const response = await apiClient.get<any>(`/trains/${id}`);
+    const data = response.data?.data || response.data;
+    return mapApiTrainToTrain(data);
+  },
+
+  async createTrain(
+    train: Omit<Train, "id" | "createdAt" | "updatedAt">
+  ): Promise<Train> {
+    const apiTrain = {
+      train: train.name,
+      number: train.trainNumber,
+      description: train.description,
+      isActive: train.isActive,
     };
-
-    trains.push(newTrain);
-    saveTrainsToStorage(trains);
-
-    return newTrain;
+    const response = await apiClient.post<any>('/trains', apiTrain);
+    const data = response.data?.data || response.data;
+    return mapApiTrainToTrain(data);
   },
 
-  updateTrain(id: string, trainData: Partial<Train>): Train {
-    const trains = getTrainsFromStorage();
-    const index = trains.findIndex((t) => t.id === id);
-
-    if (index === -1) {
-      throw new Error("Train not found");
-    }
-
-    const updatedTrain = {
-      ...trains[index],
-      ...trainData,
-      id,
-      updatedAt: new Date().toISOString(),
-    };
-
-    trains[index] = updatedTrain;
-    saveTrainsToStorage(trains);
-
-    return updatedTrain;
+  async updateTrain(id: string, trainData: Partial<Train>): Promise<Train> {
+    const apiTrain: Record<string, any> = {};
+    if (trainData.name !== undefined) apiTrain.train = trainData.name;
+    if (trainData.trainNumber !== undefined) apiTrain.number = trainData.trainNumber;
+    if (trainData.description !== undefined) apiTrain.description = trainData.description;
+    if (trainData.isActive !== undefined) apiTrain.isActive = trainData.isActive;
+    
+    const response = await apiClient.put<any>(`/trains/${id}`, apiTrain);
+    const data = response.data?.data || response.data;
+    return mapApiTrainToTrain(data);
   },
 
-  toggleTrainStatus(id: string): Train {
-    const trains = getTrainsFromStorage();
-    const index = trains.findIndex((t) => t.id === id);
-
-    if (index === -1) {
-      throw new Error("Train not found");
-    }
-
-    trains[index].isActive = !trains[index].isActive;
-    trains[index].updatedAt = new Date().toISOString();
-    saveTrainsToStorage(trains);
-
-    return trains[index];
+  async deleteTrain(id: string): Promise<void> {
+    await apiClient.delete(`/trains/${id}`);
   },
 
-  deleteTrain(id: string): void {
-    const trains = getTrainsFromStorage();
-    const filtered = trains.filter((t) => t.id !== id);
-
-    if (filtered.length === trains.length) {
-      throw new Error("Train not found");
-    }
-
-    saveTrainsToStorage(filtered);
+  async toggleTrainStatus(id: string): Promise<Train> {
+    const response = await apiClient.patch<any>(`/trains/${id}/toggle-status`);
+    const data = response.data?.data || response.data;
+    return mapApiTrainToTrain(data);
   },
 };

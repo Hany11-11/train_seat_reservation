@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, CheckCircle } from "lucide-react";
 import { Button } from "@/components/atoms/Button";
@@ -42,23 +42,22 @@ const Checkout = () => {
     setIsProcessing(true);
 
     try {
-      // Register new user if needed
-      let userId = user?.id;
-      if (isNewUser && !user) {
+      let currentUserId = user?.id;
+      if (isNewUser && !currentUserId) {
         const result = await register({
           ...passengerDetails,
-          password: "temp123", // In real app, would ask for password
+          password: "temp123",
         });
         if (result.success && result.user) {
-          userId = result.user.id;
+          currentUserId = result.user.id;
         }
       }
 
-      // Create booking and update seat status
       const booking = await createBooking(
-        userId || "guest",
         trainInfo.scheduleId,
         trainInfo.trainId,
+        trainInfo.fromStation.id,
+        trainInfo.toStation.id,
         trainInfo.date,
         selectedSeats,
         passengerDetails,

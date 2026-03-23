@@ -40,8 +40,8 @@ export const getScheduleStats = (schedules: Schedule[]): {
 } => {
   return {
     total: schedules.length,
-    active: schedules.filter(s => s.isActive).length,
-    inactive: schedules.filter(s => !s.isActive).length,
+    active: schedules.filter(s => s.status === 'ACTIVE').length,
+    inactive: schedules.filter(s => s.status === 'INACTIVE').length,
   };
 };
 

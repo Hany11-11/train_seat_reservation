@@ -1,20 +1,19 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { Train } from "@/types/train";
-import { Schedule } from "@/types/schedule";
+import { Schedule, ScheduleFormData } from "@/types/schedule";
 import { Price } from "@/types/price";
 import { Coach } from "@/types/seat";
 import { Booking } from "@/types/booking";
 import { User } from "@/types/user";
-import { trainService } from "@/services/trainService";
 import { scheduleService } from "@/services/scheduleService";
 import { priceService } from "@/services/priceService";
-import { seatService } from "@/services/seatService";
 import { bookingService } from "@/services/bookingService";
 import { userService } from "@/services/userService";
 import { stationService } from "@/services/stationService";
+import { trainService } from "@/services/trainService";
+import { seatService, CoachPayload } from "@/services/seatService";
 import {
   getBookingStats,
-  getTrainStats,
   getScheduleStats,
   getSeatStats,
 } from "@/utils/adminHelpers";
@@ -31,41 +30,72 @@ export const useAdmin = () => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const fetchData = useCallback(() => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const t = trainService.getAllTrains();
-      const s = scheduleService.getAllSchedules();
-      const p = priceService.getAllPrices();
-      const b = bookingService.getAllBookings();
-      const u = userService.getAllUsers();
-      const st = stationService.getAllStations();
+      let schedulesData: Schedule[] = [];
+      let pricesData: Price[] = [];
+      let bookingsData: Booking[] = [];
+      let usersData: User[] = [];
+      let stationsData: any[] = [];
+      let trainsData: Train[] = [];
 
-      const allCoaches: Coach[] = t.flatMap((train: any) =>
-        (train.coaches || []).map((c: any) => ({
-          ...c,
-          id: c._id || c.id,
-          trainId: train.id,
-        })),
-      );
+      try {
+        trainsData = await trainService.getAllTrains();
+      } catch (e) {
+        console.warn('Failed to fetch trains:', e);
+      }
 
-      setTrains(t);
-      setSchedules(s);
-      setPrices(p);
-      setCoaches(allCoaches);
-      setBookings(b);
-      setUsers(u);
-      setStations(st);
+      try {
+        stationsData = await stationService.getAllStations();
+      } catch (e) {
+        console.warn('Failed to fetch stations:', e);
+      }
+
+      try {
+        schedulesData = await scheduleService.getAllSchedules(trainsData, stationsData) || [];
+      } catch (e) {
+        console.warn('Failed to fetch schedules:', e);
+      }
+
+      try {
+        pricesData = await priceService.getAllPrices();
+      } catch (e) {
+        console.warn('Failed to fetch prices:', e);
+      }
+
+      try {
+        bookingsData = await bookingService.getAllBookings() || [];
+      } catch (e) {
+        console.warn('Failed to fetch bookings:', e);
+      }
+
+      try {
+        usersData = await userService.getAllUsers() || [];
+      } catch (e) {
+        console.warn('Failed to fetch users:', e);
+      }
+
+      let coachesData: any[] = [];
+      try {
+        coachesData = await seatService.getAllCoaches();
+      } catch (e) {
+        console.warn('Failed to fetch coaches:', e);
+      }
+
+      setSchedules(schedulesData);
+      setPrices(pricesData);
+      setCoaches(coachesData);
+      setBookings(bookingsData);
+      setUsers(usersData);
+      setStations(stationsData);
+      setTrains(trainsData);
     } catch (error: any) {
-      toast({
-        title: "Error fetching data",
-        description: error.message || "Something went wrong",
-        variant: "destructive",
-      });
+      console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -74,98 +104,24 @@ export const useAdmin = () => {
   const dashboardStats = useMemo(
     () => ({
       bookings: getBookingStats(bookings),
-      trains: getTrainStats(trains),
+      trains: { total: trains.length, active: trains.filter(t => t.isActive).length, inactive: trains.filter(t => !t.isActive).length },
       schedules: getScheduleStats(schedules),
       seats: getSeatStats(coaches),
     }),
     [bookings, trains, schedules, coaches],
   );
 
-  const addTrain = useCallback(
-    (train: Omit<Train, "id" | "createdAt" | "updatedAt">) => {
-      try {
-        const newTrain = trainService.createTrain(train);
-        setTrains((prev) => [...prev, newTrain]);
-        toast({
-          title: "Train Added",
-          description: `${newTrain.name} created successfully`,
-        });
-        return newTrain;
-      } catch (error: any) {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
-      }
-    },
-    [toast],
-  );
-
-  const updateTrain = useCallback(
-    (id: string, data: Partial<Train>) => {
-      try {
-        const updated = trainService.updateTrain(id, data);
-        setTrains((prev) => prev.map((t) => (t.id === id ? updated : t)));
-        toast({ title: "Train Updated" });
-      } catch (error: any) {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
-      }
-    },
-    [toast],
-  );
-
-  const deleteTrain = useCallback(
-    (id: string) => {
-      try {
-        trainService.deleteTrain(id);
-        setTrains((prev) => prev.filter((t) => t.id !== id));
-        toast({ title: "Train Deleted" });
-      } catch (error: any) {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
-      }
-    },
-    [toast],
-  );
-
-  const toggleTrainStatus = useCallback(
-    (id: string) => {
-      try {
-        const updated = trainService.toggleTrainStatus(id);
-        setTrains((prev) => prev.map((t) => (t.id === id ? updated : t)));
-        toast({ title: "Status Toggled" });
-      } catch (error: any) {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
-      }
-    },
-    [toast],
-  );
-
   const addSchedule = useCallback(
-    (schedule: Omit<Schedule, "id">) => {
+    async (schedule: ScheduleFormData) => {
       try {
-        const newSchedule = scheduleService.createSchedule(schedule);
+        const newSchedule = await scheduleService.createSchedule(schedule);
         setSchedules((prev) => [...prev, newSchedule]);
-        const updatedPrices = priceService.getAllPrices();
-        setPrices(updatedPrices);
         toast({ title: "Schedule Added" });
         return newSchedule;
       } catch (error: any) {
         toast({
           title: "Error",
-          description: error.message,
+          description: error.response?.data?.message || error.message,
           variant: "destructive",
         });
       }
@@ -174,15 +130,15 @@ export const useAdmin = () => {
   );
 
   const updateSchedule = useCallback(
-    (id: string, data: Partial<Schedule>) => {
+    async (id: string, data: Partial<ScheduleFormData>) => {
       try {
-        const updated = scheduleService.updateSchedule(id, data);
+        const updated = await scheduleService.updateSchedule(id, data);
         setSchedules((prev) => prev.map((s) => (s.id === id ? updated : s)));
         toast({ title: "Schedule Updated" });
       } catch (error: any) {
         toast({
           title: "Error",
-          description: error.message,
+          description: error.response?.data?.message || error.message,
           variant: "destructive",
         });
       }
@@ -191,15 +147,15 @@ export const useAdmin = () => {
   );
 
   const deleteSchedule = useCallback(
-    (id: string) => {
+    async (id: string) => {
       try {
-        scheduleService.deleteSchedule(id);
+        await scheduleService.deleteSchedule(id);
         setSchedules((prev) => prev.filter((s) => s.id !== id));
         toast({ title: "Schedule Deleted" });
       } catch (error: any) {
         toast({
           title: "Error",
-          description: error.message,
+          description: error.response?.data?.message || error.message,
           variant: "destructive",
         });
       }
@@ -208,35 +164,25 @@ export const useAdmin = () => {
   );
 
   const updatePrice = useCallback(
-    (id: string, data: Partial<Price>) => {
+    async (id: string, data: Partial<Price>) => {
       try {
-        const p = prices.find((x) => x.id === id);
-        if (!p) return;
-        const updated = priceService.setPrice({
-          scheduleId: p.scheduleId,
-          classType: p.classType,
-          basePrice: data.basePrice ?? p.basePrice,
-          currency: data.currency ?? p.currency,
-          isActive: data.isActive ?? p.isActive,
-        });
-        setPrices((prev) =>
-          prev.map((item) => (item.id === id ? updated : item)),
-        );
+        const updated = await priceService.updatePrice(id, data);
+        setPrices((prev) => prev.map((item) => (item.id === id ? updated : item)));
         toast({ title: "Price Updated" });
       } catch (error: any) {
         toast({
           title: "Error",
-          description: error.message,
+          description: error.response?.data?.message || error.message,
           variant: "destructive",
         });
       }
     },
-    [toast, prices],
+    [toast],
   );
 
   const getPricesForSchedule = useCallback(
     (scheduleId: string): Price[] => {
-      return prices.filter((p) => p.scheduleId === scheduleId);
+      return prices.filter((p) => p.schedule === scheduleId);
     },
     [prices],
   );
@@ -275,6 +221,58 @@ export const useAdmin = () => {
     [toast],
   );
 
+  const addCoach = useCallback(
+    async (coachData: CoachPayload) => {
+      try {
+        const newCoach = await seatService.createCoach(coachData);
+        setCoaches((prev) => [...prev, newCoach]);
+        toast({ title: "Coach Added" });
+        return newCoach;
+      } catch (error: any) {
+        toast({
+          title: "Error",
+          description: error.response?.data?.message || error.message,
+          variant: "destructive",
+        });
+      }
+    },
+    [toast],
+  );
+
+  const updateCoach = useCallback(
+    async (id: string, data: Partial<CoachPayload>) => {
+      try {
+        const updated = await seatService.updateCoach(id, data);
+        setCoaches((prev) => prev.map((c) => (c.id === id ? updated : c)));
+        toast({ title: "Coach Updated" });
+      } catch (error: any) {
+        toast({
+          title: "Error",
+          description: error.response?.data?.message || error.message,
+          variant: "destructive",
+        });
+      }
+    },
+    [toast],
+  );
+
+  const deleteCoach = useCallback(
+    async (id: string) => {
+      try {
+        await seatService.deleteCoach(id);
+        setCoaches((prev) => prev.filter((c) => c.id !== id));
+        toast({ title: "Coach Deleted" });
+      } catch (error: any) {
+        toast({
+          title: "Error",
+          description: error.response?.data?.message || error.message,
+          variant: "destructive",
+        });
+      }
+    },
+    [toast],
+  );
+
   return {
     trains,
     schedules,
@@ -285,10 +283,6 @@ export const useAdmin = () => {
     stations,
     loading,
     dashboardStats,
-    addTrain,
-    updateTrain,
-    deleteTrain,
-    toggleTrainStatus,
     addSchedule,
     updateSchedule,
     deleteSchedule,
@@ -296,6 +290,9 @@ export const useAdmin = () => {
     getPricesForSchedule,
     toggleUserStatus,
     deleteUser,
+    addCoach,
+    updateCoach,
+    deleteCoach,
     refreshData: fetchData,
   };
 };

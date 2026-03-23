@@ -5,7 +5,7 @@ export interface Seat {
   coachId: string;
   seatNumber: string;
   row: number;
-  column: number;
+  column: string;
   status: SeatStatus;
   classType: '1ST' | '2ND' | '3RD';
 }

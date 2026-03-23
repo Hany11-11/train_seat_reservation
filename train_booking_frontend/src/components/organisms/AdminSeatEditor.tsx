@@ -24,11 +24,20 @@ import {
 } from "@/components/ui/table";
 import { Plus, Pencil, Trash2, Armchair } from "lucide-react";
 
+interface CoachPayload {
+  train: string;
+  coachName: string;
+  classType: "1ST" | "2ND" | "3RD";
+  rows: number;
+  seatsPerRow: number;
+  layout: string;
+}
+
 interface AdminSeatEditorProps {
   coaches: Coach[];
   trains: Train[];
-  onAdd: (coach: Omit<Coach, "id">) => void;
-  onUpdate: (id: string, data: Partial<Coach>) => void;
+  onAdd: (coach: CoachPayload) => void;
+  onUpdate: (id: string, data: Partial<CoachPayload>) => void;
   onDelete: (id: string) => void;
 }
 
@@ -47,7 +56,6 @@ export const AdminSeatEditor = ({
     trainId: "",
     name: "",
     classType: "" as "1ST" | "2ND" | "3RD" | "",
-    totalSeats: 48,
     seatsPerRow: 4,
     totalRows: 12,
     layout: "2-2",
@@ -85,7 +93,6 @@ export const AdminSeatEditor = ({
         trainId: coach.trainId,
         name: coach.name,
         classType: coach.classType,
-        totalSeats: coach.totalSeats,
         seatsPerRow: coach.seatsPerRow,
         totalRows: coach.totalRows,
         layout: coach.layout,
@@ -96,7 +103,6 @@ export const AdminSeatEditor = ({
         trainId: selectedTrainId === "all" ? "" : selectedTrainId,
         name: "",
         classType: "",
-        totalSeats: 48,
         seatsPerRow: 4,
         totalRows: 12,
         layout: "2-2",
@@ -109,23 +115,19 @@ export const AdminSeatEditor = ({
     let seatsPerRow = 4;
     let layout = "2-2";
     let totalRows = 12;
-    let totalSeats = 48;
 
     if (classType === "1ST") {
       seatsPerRow = 4;
       layout = "2-2";
       totalRows = 6;
-      totalSeats = 24;
     } else if (classType === "2ND") {
       seatsPerRow = 4;
       layout = "2-2";
       totalRows = 12;
-      totalSeats = 48;
     } else if (classType === "3RD") {
       seatsPerRow = 6;
       layout = "3-3";
       totalRows = 12;
-      totalSeats = 72;
     }
 
     setFormData((prev) => ({
@@ -134,17 +136,20 @@ export const AdminSeatEditor = ({
       seatsPerRow,
       layout,
       totalRows,
-      totalSeats,
     }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.classType) return;
+    if (!formData.classType || !formData.trainId) return;
 
     const coachData = {
-      ...formData,
+      train: formData.trainId,
+      coachName: formData.name,
       classType: formData.classType as "1ST" | "2ND" | "3RD",
+      rows: formData.totalRows,
+      seatsPerRow: formData.seatsPerRow,
+      layout: formData.layout,
     };
 
     if (editingCoach) {
@@ -394,7 +399,7 @@ export const AdminSeatEditor = ({
 
             <p className="text-sm text-muted-foreground">
               Total Seats:{" "}
-              <span className="font-medium">{formData.totalSeats}</span>
+              <span className="font-medium">{formData.totalRows * formData.seatsPerRow}</span>
             </p>
 
             <Modal.Footer>

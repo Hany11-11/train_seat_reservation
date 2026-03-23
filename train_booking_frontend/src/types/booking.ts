@@ -35,13 +35,60 @@ export interface BookingSearchResult {
   trainId: string;
   trainNumber: string;
   trainName: string;
-  fromStation: string;
-  toStation: string;
+  fromStation: {
+    id: string;
+    name: string;
+    code: string;
+  };
+  toStation: {
+    id: string;
+    name: string;
+    code: string;
+  };
   departureTime: string;
   arrivalTime: string;
   duration: string;
   date: string;
-  availability: ClassAvailability[];
+  passengers?: number;
+  fromStationRoute?: {
+    id: string;
+    name: string;
+    arrivalTime: string;
+    departureTime: string;
+  };
+  toStationRoute?: {
+    id: string;
+    name: string;
+    arrivalTime: string;
+    departureTime: string;
+  };
+  userDuration?: string;
+  availability: {
+    [classType: string]: {
+      totalSeats: number;
+      availableSeats: number;
+      coaches: Array<{
+        coachName: string;
+        totalSeats: number;
+        layout?: string;
+        rows: number;
+        seatsPerRow: number;
+      }>;
+    };
+  };
+  prices?: {
+    '1ST'?: number;
+    '2ND'?: number;
+    '3RD'?: number;
+  };
+  classTypes?: string[];
+  route?: Array<{
+    stationId: string;
+    stationName: string;
+    stationCode: string;
+    arrivalTime: string;
+    departureTime: string;
+  }>;
 }
 
 export interface ClassAvailability {

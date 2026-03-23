@@ -1,41 +1,29 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { Seat, CoachWithSeats } from '@/types/seat';
 import { BookedSeat } from '@/types/booking';
-import { Price } from '@/types/price';
-import { seatService } from '@/services/seatService';
-import { priceService } from '@/services/priceService';
+import { seatService, CoachWithSeats, SeatAvailability } from '@/services/seatService';
 import { useToast } from './use-toast';
 
-export const useSeatSelection = (_trainId: string, scheduleId: string, date: string) => {
-  const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
+export const useSeatSelection = (scheduleId: string, date: string, classType: string, ticketPrice: number) => {
+  const [selectedSeats, setSelectedSeats] = useState<SeatAvailability[]>([]);
   const [activeCoachId, setActiveCoachId] = useState<string | null>(null);
   const [coaches, setCoaches] = useState<CoachWithSeats[]>([]);
-  const [prices, setPrices] = useState<Price[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const fetchData = useCallback(() => {
-    if (!scheduleId || !date) return;
+  const fetchData = useCallback(async () => {
+    if (!scheduleId || !date || !classType) return;
     setIsLoading(true);
     try {
-      const seatData = seatService.getSeatLayout(scheduleId, date);
-      const priceData = priceService.getPricesBySchedule(scheduleId);
-
-      const normalizedCoaches = seatData.coaches.map((coach: any) => ({
-        ...coach,
-        id: coach.coachId,
-        name: coach.coachName,
-        seats: coach.seats.map((seat: any) => ({
-          ...seat,
-          id: seat._id || seat.id,
-        })),
-      }));
-
-      setCoaches(normalizedCoaches);
-      setPrices(priceData);
+      const availabilityData = await seatService.getSeatAvailability(scheduleId, date, classType);
       
-      if (normalizedCoaches.length > 0 && !activeCoachId) {
-        setActiveCoachId(normalizedCoaches[0].id);
+      if (availabilityData.success && availabilityData.data) {
+        setCoaches(availabilityData.data);
+        
+        if (availabilityData.data.length > 0 && !activeCoachId) {
+          setActiveCoachId(availabilityData.data[0].coachId);
+        }
+      } else {
+        setCoaches([]);
       }
     } catch (error: any) {
       toast({
@@ -46,7 +34,7 @@ export const useSeatSelection = (_trainId: string, scheduleId: string, date: str
     } finally {
       setIsLoading(false);
     }
-  }, [scheduleId, date, activeCoachId, toast]);
+  }, [scheduleId, date, classType, activeCoachId, toast]);
 
   useEffect(() => {
     fetchData();
@@ -56,18 +44,18 @@ export const useSeatSelection = (_trainId: string, scheduleId: string, date: str
     if (!activeCoachId && coaches.length > 0) {
       return coaches[0];
     }
-    return coaches.find(c => c.id === activeCoachId) || null;
+    return coaches.find(c => c.coachId === activeCoachId) || null;
   }, [activeCoachId, coaches]);
 
-  const toggleSeatSelection = useCallback((seat: Seat) => {
+  const toggleSeatSelection = useCallback((seat: SeatAvailability) => {
     if (seat.status === 'booked' || seat.status === 'unavailable') {
       return;
     }
 
     setSelectedSeats(prev => {
-      const isSelected = prev.some(s => s.id === seat.id);
+      const isSelected = prev.some(s => s._id === seat._id);
       if (isSelected) {
-        return prev.filter(s => s.id !== seat.id);
+        return prev.filter(s => s._id !== seat._id);
       }
       return [...prev, seat];
     });
@@ -77,40 +65,32 @@ export const useSeatSelection = (_trainId: string, scheduleId: string, date: str
     setSelectedSeats([]);
   }, []);
 
-  const getSeatPrice = useCallback((classType: '1ST' | '2ND' | '3RD'): number => {
-    const price = prices.find(p => p.classType === classType);
-    return price?.basePrice ?? 0;
-  }, [prices]);
-
   const getSelectedSeatsAsBookedSeats = useCallback((): BookedSeat[] => {
     return selectedSeats.map(seat => {
-      const coach = coaches.find(c => c.id === seat.coachId);
       return {
-        seatId: seat.id,
+        seatId: seat._id,
         coachId: seat.coachId,
         seatNumber: seat.seatNumber,
-        coachName: coach?.name || '',
-        classType: seat.classType,
-        price: getSeatPrice(seat.classType),
+        coachName: seat.coachName,
+        classType: seat.classType as '1ST' | '2ND' | '3RD',
+        price: ticketPrice,
       };
     });
-  }, [selectedSeats, coaches, getSeatPrice]);
+  }, [selectedSeats, ticketPrice]);
 
   const totalAmount = useMemo(() => {
-    return selectedSeats.reduce((sum, seat) => sum + getSeatPrice(seat.classType), 0);
-  }, [selectedSeats, getSeatPrice]);
+    return selectedSeats.reduce((sum) => sum + ticketPrice, 0);
+  }, [selectedSeats, ticketPrice]);
 
   const availableSeatsCount = useMemo(() => {
     return coaches.reduce((acc, coach) => {
-      const available = coach.seats.filter(s => s.status === 'available').length;
-      acc[coach.classType] = (acc[coach.classType] || 0) + available;
+      acc[coach.coachId] = coach.availableSeats;
       return acc;
     }, {} as Record<string, number>);
   }, [coaches]);
 
   return {
     coaches,
-    prices,
     activeCoach,
     activeCoachId,
     selectedSeats,
@@ -120,7 +100,6 @@ export const useSeatSelection = (_trainId: string, scheduleId: string, date: str
     setActiveCoachId,
     toggleSeatSelection,
     clearSelection,
-    getSeatPrice,
     getSelectedSeatsAsBookedSeats,
     refreshData: fetchData,
   };

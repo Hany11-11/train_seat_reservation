@@ -5,7 +5,7 @@ import { Train } from 'lucide-react';
 interface TrainResultsListProps {
   results: BookingSearchResult[];
   isLoading: boolean;
-  onSelectTrain: (result: BookingSearchResult) => void;
+  onSelectTrain: (result: BookingSearchResult, classType: string) => void;
 }
 
 export const TrainResultsList = ({ results, isLoading, onSelectTrain }: TrainResultsListProps) => {
@@ -63,7 +63,7 @@ export const TrainResultsList = ({ results, isLoading, onSelectTrain }: TrainRes
           style={{ animationDelay: `${index * 100}ms` }}
           className="animate-fade-in"
         >
-          <TrainInfoCard result={result} onSelect={() => onSelectTrain(result)} />
+          <TrainInfoCard result={result} onSelect={(classType) => onSelectTrain(result, classType)} />
         </div>
       ))}
     </div>

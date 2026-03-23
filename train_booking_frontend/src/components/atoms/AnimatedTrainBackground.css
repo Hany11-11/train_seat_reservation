@@ -1,0 +1,32 @@
+.train-bg-container {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  max-width: 100vw;
+  height: 410px; /* match hero section height */
+  pointer-events: none;
+  z-index: 1;
+  overflow-x: hidden;
+  overflow-y: hidden;
+}
+
+.train-bg-image {
+  position: absolute;
+  bottom: 0;
+  left: -200vw;
+  height: 130px;
+  width: auto;
+  max-width: none;
+  animation: train-move 12s linear infinite;
+  opacity: 0.97;
+}
+
+@keyframes train-move {
+  0% {
+    left: -200vw;
+  }
+  100% {
+    left: 100vw;
+  }
+}

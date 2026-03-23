@@ -1,19 +1,24 @@
 import { Seat } from '@/components/atoms/Seat';
-import { Seat as SeatType } from '@/types/seat';
-import { cn } from '@/lib/utils';
+import { SeatAvailability } from '@/services/seatService';
 
 interface SeatRowProps {
-  seats: SeatType[];
+  seats: SeatAvailability[];
   selectedSeatIds: string[];
-  onSeatClick: (seat: SeatType) => void;
+  onSeatClick: (seat: SeatAvailability) => void;
   layout: string;
   rowNumber: number;
 }
 
 export const SeatRow = ({ seats, selectedSeatIds, onSeatClick, layout, rowNumber }: SeatRowProps) => {
   const [leftCount, rightCount] = layout.split('-').map(Number);
-  const leftSeats = seats.slice(0, leftCount);
-  const rightSeats = seats.slice(leftCount, leftCount + rightCount);
+  
+  // Sort by column letter (A, B, C, D) - column is a string like "A", "B"
+  const sortedSeats = [...seats].sort((a, b) => {
+    return a.column.localeCompare(b.column);
+  });
+  
+  const leftSeats = sortedSeats.slice(0, leftCount);
+  const rightSeats = sortedSeats.slice(leftCount, leftCount + rightCount);
 
   return (
     <div className="flex items-center gap-4 py-1">
@@ -24,10 +29,10 @@ export const SeatRow = ({ seats, selectedSeatIds, onSeatClick, layout, rowNumber
       <div className="flex gap-1.5">
         {leftSeats.map(seat => (
           <Seat
-            key={seat.id}
+            key={seat._id}
             seatNumber={seat.seatNumber}
             status={seat.status}
-            isSelected={selectedSeatIds.includes(seat.id)}
+            isSelected={selectedSeatIds.includes(seat._id)}
             onClick={() => onSeatClick(seat)}
           />
         ))}
@@ -42,10 +47,10 @@ export const SeatRow = ({ seats, selectedSeatIds, onSeatClick, layout, rowNumber
       <div className="flex gap-1.5">
         {rightSeats.map(seat => (
           <Seat
-            key={seat.id}
+            key={seat._id}
             seatNumber={seat.seatNumber}
             status={seat.status}
-            isSelected={selectedSeatIds.includes(seat.id)}
+            isSelected={selectedSeatIds.includes(seat._id)}
             onClick={() => onSeatClick(seat)}
           />
         ))}

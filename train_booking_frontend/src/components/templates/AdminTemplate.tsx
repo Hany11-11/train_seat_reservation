@@ -8,6 +8,7 @@ import {
   Armchair,
   Users,
   LogOut,
+  MapPin,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +21,7 @@ interface AdminTemplateProps {
 const navItems = [
   { path: "/admin", icon: LayoutDashboard, label: "Dashboard" },
   { path: "/admin/trains", icon: Train, label: "Trains" },
+  { path: "/admin/stations", icon: MapPin, label: "Stations" },
   { path: "/admin/schedules", icon: Calendar, label: "Schedules" },
   { path: "/admin/prices", icon: DollarSign, label: "Prices" },
   { path: "/admin/seats", icon: Armchair, label: "Seats" },

@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Train, Calendar, Ticket, DollarSign, Armchair, TrendingUp } from 'lucide-react';
+import { Train, Calendar, Ticket, DollarSign, Armchair, TrendingUp, Loader2 } from 'lucide-react';
 import { AdminTemplate } from '@/components/templates/AdminTemplate';
 import { useAuth } from '@/hooks/useAuth';
 import { useAdmin } from '@/hooks/useAdmin';
@@ -7,8 +7,16 @@ import { formatCurrency } from '@/utils/fareCalculator';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  const { logout, isAdmin } = useAuth();
+  const { logout, isAdmin, isLoading } = useAuth();
   const { dashboardStats } = useAdmin();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-accent" />
+      </div>
+    );
+  }
 
   if (!isAdmin) {
     navigate('/admin/login');

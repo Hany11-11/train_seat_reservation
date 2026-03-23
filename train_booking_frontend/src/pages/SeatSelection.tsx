@@ -8,7 +8,9 @@ import { useSeatSelection } from '@/hooks/useSeatSelection';
 const SeatSelection = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { trainInfo, passengers } = location.state || {};
+  const { trainInfo, selectedClass, passengers } = location.state || {};
+
+  const ticketPrice = trainInfo?.prices?.[selectedClass] || 0;
 
   const {
     coaches,
@@ -18,7 +20,12 @@ const SeatSelection = () => {
     setActiveCoachId,
     toggleSeatSelection,
     getSelectedSeatsAsBookedSeats,
-  } = useSeatSelection(trainInfo?.trainId || '', trainInfo?.scheduleId || '', trainInfo?.date || '');
+  } = useSeatSelection(
+    trainInfo?.scheduleId || '', 
+    trainInfo?.date || '', 
+    selectedClass,
+    ticketPrice
+  );
 
   if (!trainInfo) {
     navigate('/');
@@ -29,11 +36,21 @@ const SeatSelection = () => {
     navigate('/checkout', {
       state: {
         trainInfo,
+        selectedClass,
         selectedSeats: getSelectedSeatsAsBookedSeats(),
         totalAmount,
         passengers,
       },
     });
+  };
+
+  const getClassName = (classType: string) => {
+    switch (classType) {
+      case '1ST': return '1st Class';
+      case '2ND': return '2nd Class';
+      case '3RD': return '3rd Class';
+      default: return classType;
+    }
   };
 
   return (
@@ -50,11 +67,14 @@ const SeatSelection = () => {
       <main className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
-            <h2 className="text-2xl font-bold text-foreground mb-6">Select Your Seats</h2>
+            <h2 className="text-2xl font-bold text-foreground mb-2">Select Your Seats</h2>
+            <p className="text-sm text-muted-foreground mb-6">
+              {trainInfo.trainName} - {getClassName(selectedClass)} - {trainInfo.date}
+            </p>
             <SeatLayout
               coaches={coaches}
               activeCoachId={activeCoachId}
-              selectedSeatIds={selectedSeats.map(s => s.id)}
+              selectedSeatIds={selectedSeats.map(s => s._id)}
               onCoachSelect={setActiveCoachId}
               onSeatClick={toggleSeatSelection}
             />
@@ -63,6 +83,7 @@ const SeatSelection = () => {
           <div className="space-y-4">
             <BookingSummary
               trainInfo={trainInfo}
+              selectedClass={selectedClass}
               selectedSeats={getSelectedSeatsAsBookedSeats()}
               totalAmount={totalAmount}
               passengerCount={passengers}

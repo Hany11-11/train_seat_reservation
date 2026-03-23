@@ -6,12 +6,13 @@ import { Train, MapPin, Calendar, Ticket, User } from 'lucide-react';
 
 interface BookingSummaryProps {
   trainInfo: BookingSearchResult;
+  selectedClass?: string;
   selectedSeats: BookedSeat[];
   totalAmount: number;
   passengerCount?: number;
 }
 
-export const BookingSummary = ({ trainInfo, selectedSeats, totalAmount, passengerCount }: BookingSummaryProps) => {
+export const BookingSummary = ({ trainInfo, selectedClass, selectedSeats, totalAmount, passengerCount }: BookingSummaryProps) => {
   const getClassBadgeVariant = (classType: string) => {
     switch (classType) {
       case '1ST': return 'class1st';
@@ -20,6 +21,20 @@ export const BookingSummary = ({ trainInfo, selectedSeats, totalAmount, passenge
       default: return 'secondary';
     }
   };
+
+  const getClassName = (classType: string) => {
+    switch (classType) {
+      case '1ST': return '1st Class';
+      case '2ND': return '2nd Class';
+      case '3RD': return '3rd Class';
+      default: return classType;
+    }
+  };
+
+  const fromStationName = trainInfo.fromStationRoute?.name || trainInfo.fromStation?.name || trainInfo.fromStation;
+  const toStationName = trainInfo.toStationRoute?.name || trainInfo.toStation?.name || trainInfo.toStation;
+  const departureTime = trainInfo.fromStationRoute?.departureTime || trainInfo.departureTime;
+  const arrivalTime = trainInfo.toStationRoute?.arrivalTime || trainInfo.arrivalTime;
 
   const seatsByClass = selectedSeats.reduce((acc, seat) => {
     if (!acc[seat.classType]) acc[seat.classType] = [];
@@ -46,14 +61,23 @@ export const BookingSummary = ({ trainInfo, selectedSeats, totalAmount, passenge
           </div>
         </div>
 
+        {/* Selected Class */}
+        {selectedClass && (
+          <div className="flex items-center gap-2">
+            <Badge variant={getClassBadgeVariant(selectedClass)}>
+              {getClassName(selectedClass)}
+            </Badge>
+          </div>
+        )}
+
         {/* Route */}
         <div className="space-y-3">
           <div className="flex items-center gap-3">
             <MapPin className="w-4 h-4 text-success" />
             <div>
               <p className="text-sm text-muted-foreground">From</p>
-              <p className="font-medium">{trainInfo.fromStation}</p>
-              <p className="text-sm text-muted-foreground">{formatTime(trainInfo.departureTime)}</p>
+              <p className="font-medium">{fromStationName}</p>
+              <p className="text-sm text-muted-foreground">{formatTime(departureTime)}</p>
             </div>
           </div>
           <div className="ml-2 border-l-2 border-dashed border-border h-4" />
@@ -61,8 +85,8 @@ export const BookingSummary = ({ trainInfo, selectedSeats, totalAmount, passenge
             <MapPin className="w-4 h-4 text-destructive" />
             <div>
               <p className="text-sm text-muted-foreground">To</p>
-              <p className="font-medium">{trainInfo.toStation}</p>
-              <p className="text-sm text-muted-foreground">{formatTime(trainInfo.arrivalTime)}</p>
+              <p className="font-medium">{toStationName}</p>
+              <p className="text-sm text-muted-foreground">{formatTime(arrivalTime)}</p>
             </div>
           </div>
         </div>
@@ -99,7 +123,7 @@ export const BookingSummary = ({ trainInfo, selectedSeats, totalAmount, passenge
                 <div key={classType} className="p-3 bg-muted/50 rounded-lg">
                   <div className="flex items-center justify-between mb-2">
                     <Badge variant={getClassBadgeVariant(classType)} size="sm">
-                      {classType === '1ST' ? 'First Class' : classType === '2ND' ? 'Second Class' : 'Third Class'}
+                      {getClassName(classType)}
                     </Badge>
                     <span className="text-sm text-muted-foreground">
                       {formatCurrency(seats[0].price)} × {seats.length}

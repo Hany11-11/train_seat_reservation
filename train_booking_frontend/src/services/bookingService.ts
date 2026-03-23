@@ -1,115 +1,121 @@
 import { Booking, PassengerDetails, BookedSeat } from "@/types/booking";
-import {
-  getBookingsFromStorage,
-  saveBookingsToStorage,
-  getBookingsForUser,
-  generateBookingReference,
-} from "@/data/bookings.mock";
+import { apiClient } from "@/lib/apiClient";
 
-type BookingStats = {
-  totalBookings: number;
-  confirmedBookings: number;
-  cancelledBookings: number;
-  totalRevenue: number;
-};
+export interface CreateBookingPayload {
+  scheduleId: string;
+  trainId: string;
+  fromStationId: string;
+  toStationId: string;
+  travelDate: string;
+  seats: BookedSeat[];
+  passengerDetails: PassengerDetails;
+}
 
-const getCurrentUserId = (): string => {
-  const user = localStorage.getItem("current_user");
-  if (user) {
-    return JSON.parse(user).id;
-  }
-  throw new Error("Not authenticated");
-};
+export interface BackendBookingResponse {
+  _id: string;
+  user: string;
+  schedule: {
+    _id: string;
+    train?: {
+      _id: string;
+      trainNumber?: string;
+      name?: string;
+    };
+  };
+  fromStation: {
+    _id: string;
+    name: string;
+    code: string;
+  };
+  toStation: {
+    _id: string;
+    name: string;
+    code: string;
+  };
+  date: string;
+  classType: "1ST" | "2ND" | "3RD";
+  seats: number;
+  seatNumbers: string[];
+  price: number;
+  status: "CONFIRMED" | "CANCELLED";
+  createdAt: string;
+  updatedAt: string;
+}
+
+const mapBackendToFrontend = (backend: BackendBookingResponse): Booking => ({
+  id: backend._id,
+  referenceNumber: `TRN-${backend._id.slice(-8).toUpperCase()}`,
+  userId: backend.user,
+  scheduleId: typeof backend.schedule === 'object' ? backend.schedule._id : backend.schedule,
+  trainId: typeof backend.schedule === 'object' && backend.schedule.train 
+    ? (typeof backend.schedule.train === 'object' ? backend.schedule.train._id : backend.schedule.train) 
+    : '',
+  travelDate: backend.date,
+  seats: backend.seatNumbers.map((num) => ({
+    seatId: num,
+    coachId: '',
+    seatNumber: num,
+    coachName: '',
+    classType: backend.classType,
+    price: backend.price / backend.seats,
+  })),
+  totalAmount: backend.price,
+  status: backend.status === "CONFIRMED" ? "confirmed" : "cancelled",
+  createdAt: backend.createdAt,
+  passengerDetails: {
+    name: "",
+    nic: "",
+    email: "",
+    mobile: "",
+  },
+});
 
 export const bookingService = {
-  createBooking(payload: {
-    scheduleId: string;
-    trainId: string;
-    travelDate: string;
-    seats: BookedSeat[];
-    passengerDetails: PassengerDetails;
-  }): Booking {
-    const userId = getCurrentUserId();
-    const bookings = getBookingsFromStorage();
-
-    const totalAmount = payload.seats.reduce(
-      (sum, seat) => sum + seat.price,
-      0,
+  async createBooking(payload: CreateBookingPayload): Promise<Booking> {
+    const response = await apiClient.post<BackendBookingResponse>(
+      "/bookings",
+      {
+        schedule: payload.scheduleId,
+        fromStation: payload.fromStationId,
+        toStation: payload.toStationId,
+        date: payload.travelDate,
+        classType: payload.seats[0]?.classType || "3RD",
+        seats: payload.seats.length,
+        seatNumbers: payload.seats.map(s => s.seatNumber),
+        price: payload.seats.reduce((sum, s) => sum + s.price, 0),
+      }
     );
-
-    const newBooking: Booking = {
-      id: `b${Date.now()}`,
-      referenceNumber: generateBookingReference(),
-      userId,
-      scheduleId: payload.scheduleId,
-      trainId: payload.trainId,
-      travelDate: payload.travelDate,
-      seats: payload.seats,
-      totalAmount,
-      status: "confirmed",
-      createdAt: new Date().toISOString(),
-      passengerDetails: payload.passengerDetails,
-    };
-
-    bookings.push(newBooking);
-    saveBookingsToStorage(bookings);
-
-    return newBooking;
+    return mapBackendToFrontend(response.data);
   },
 
-  getMyBookings(): Booking[] {
-    const userId = getCurrentUserId();
-    return getBookingsForUser(userId);
+  async getMyBookings(): Promise<Booking[]> {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: { bookings: BackendBookingResponse[] };
+      count: number;
+    }>("/bookings/my");
+    return response.data.data.bookings.map(mapBackendToFrontend);
   },
 
-  getBookingById(id: string): Booking {
-    const bookings = getBookingsFromStorage();
-    const booking = bookings.find((b) => b.id === id);
-
-    if (!booking) {
-      throw new Error("Booking not found");
-    }
-
-    return booking;
+  async getBookingById(id: string): Promise<Booking> {
+    const response = await apiClient.get<BackendBookingResponse>(
+      `/bookings/${id}`
+    );
+    return mapBackendToFrontend(response.data);
   },
 
-  cancelBooking(id: string): Booking {
-    const bookings = getBookingsFromStorage();
-    const index = bookings.findIndex((b) => b.id === id);
-
-    if (index === -1) {
-      throw new Error("Booking not found");
-    }
-
-    bookings[index].status = "cancelled";
-    saveBookingsToStorage(bookings);
-
-    return bookings[index];
+  async cancelBooking(id: string): Promise<Booking> {
+    const response = await apiClient.put<BackendBookingResponse>(
+      `/bookings/${id}/cancel`,
+      {}
+    );
+    return mapBackendToFrontend(response.data);
   },
 
-  getAllBookings(): Booking[] {
-    return getBookingsFromStorage();
-  },
-
-  getBookingStats(): BookingStats {
-    const bookings = getBookingsFromStorage();
-
-    const totalBookings = bookings.length;
-    const confirmedBookings = bookings.filter(
-      (b) => b.status === "confirmed",
-    ).length;
-    const cancelledBookings = bookings.filter(
-      (b) => b.status === "cancelled",
-    ).length;
-    const totalRevenue = bookings
-      .filter((b) => b.status === "confirmed")
-      .reduce((sum, b) => sum + b.totalAmount, 0);
-
-    return {
-      totalBookings,
-      confirmedBookings,
-      cancelledBookings,
-      totalRevenue,
-    };
+  async getAllBookings(): Promise<Booking[]> {
+    const response = await apiClient.get<BackendBookingResponse[]>(
+      "/bookings"
+    );
+    return response.data.map(mapBackendToFrontend);
   },
 };

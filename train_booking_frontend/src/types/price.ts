@@ -1,18 +1,21 @@
 export interface Price {
   id: string;
-  scheduleId: string;
+  schedule: string;
+  fromStation: string;
+  toStation: string;
   classType: '1ST' | '2ND' | '3RD';
-  basePrice: number;
-  currency: string;
-  isActive: boolean;
-  updatedAt: string;
+  price: number;
+  status: 'ACTIVE' | 'INACTIVE';
+  scheduleData?: any;
+  fromStationData?: any;
+  toStationData?: any;
 }
 
-export interface PriceMatrix {
-  scheduleId: string;
-  prices: {
-    '1ST': number;
-    '2ND': number;
-    '3RD': number;
-  };
+export interface PriceFormData {
+  schedule: string;
+  fromStation: string;
+  toStation: string;
+  classType: '1ST' | '2ND' | '3RD';
+  price: number;
+  status: 'ACTIVE' | 'INACTIVE';
 }

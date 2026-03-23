@@ -5,23 +5,30 @@ export interface Station {
   city: string;
 }
 
-export interface Schedule {
-  id: string;
-  trainId: string;
-  fromStationId: string;
-  toStationId: string;
-  departureTime: string;
-  arrivalTime: string;
-  travelDates: string[];
-  isActive: boolean;
-  durationMinutes: number;
+export interface RouteStop {
+  station: string;
+  arrivalTime?: string;
+  departureTime?: string;
 }
 
-export interface RouteStop {
-  stationId: string;
-  arrivalTime: string;
-  departureTime: string;
-  stopOrder: number;
+export interface Schedule {
+  id: string;
+  train: string;
+  fromStation: string;
+  toStation: string;
+  route: RouteStop[];
+  status: 'ACTIVE' | 'INACTIVE';
+  trainData?: any;
+  fromStationData?: Station;
+  toStationData?: Station;
+}
+
+export interface ScheduleFormData {
+  train: string;
+  fromStation: string;
+  toStation: string;
+  route: RouteStop[];
+  status: 'ACTIVE' | 'INACTIVE';
 }
 
 export const STATIONS: Station[] = [

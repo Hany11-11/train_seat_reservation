@@ -5,9 +5,8 @@ import {
   PassengerDetails,
   BookedSeat,
 } from "@/types/booking";
-import { scheduleService } from "@/services/scheduleService";
+import { scheduleService, SearchTrainResult } from "@/services/scheduleService";
 import { bookingService } from "@/services/bookingService";
-import { formatDuration } from "@/utils/fareCalculator";
 import { useToast } from "./use-toast";
 
 export interface SearchParams {
@@ -16,6 +15,41 @@ export interface SearchParams {
   date: string;
   passengers: number;
 }
+
+const mapSearchResultToBookingSearchResult = (
+  result: SearchTrainResult,
+  date: string,
+  passengers: number
+): BookingSearchResult => ({
+  scheduleId: result.scheduleId,
+  trainId: result.trainId,
+  trainNumber: result.trainNumber,
+  trainName: result.trainName,
+  fromStation: {
+    id: result.fromStation.id,
+    name: result.fromStation.name,
+    code: result.fromStation.code,
+  },
+  toStation: {
+    id: result.toStation.id,
+    name: result.toStation.name,
+    code: result.toStation.code,
+  },
+  departureTime: result.departureTime,
+  arrivalTime: result.arrivalTime,
+  duration: result.duration,
+  date,
+  passengers,
+  fromStationRoute: result.fromStationRoute,
+  toStationRoute: result.toStationRoute,
+  userDuration: result.userDuration,
+  availability: result.availability,
+  prices: Object.fromEntries(
+    Object.entries(result.prices).map(([key, value]) => [key, value.price])
+  ) as Record<string, number>,
+  classTypes: result.classTypes,
+  route: result.route,
+});
 
 export const useBooking = () => {
   const [searchParams, setSearchParams] = useState<SearchParams | null>(null);
@@ -26,48 +60,26 @@ export const useBooking = () => {
   const { toast } = useToast();
 
   const searchTrains = useCallback(
-    (params: SearchParams): BookingSearchResult[] => {
+    async (params: SearchParams): Promise<BookingSearchResult[]> => {
       setIsSearching(true);
       setSearchParams(params);
 
       try {
-        const data = scheduleService.searchSchedules({
-          from: params.fromStationId,
-          to: params.toStationId,
-          date: params.date,
-        } as any);
+        const searchResults = await scheduleService.searchTrains(
+          params.fromStationId,
+          params.toStationId
+        );
 
-        const results: BookingSearchResult[] = data.map((s: any) => ({
-          scheduleId: s.scheduleId,
-          trainId: s.trainId,
-          trainNumber: s.trainNumber,
-          trainName: s.trainName,
-          fromStation: s.fromStation,
-          toStation: s.toStation,
-          departureTime: s.departureTime,
-          arrivalTime: s.arrivalTime,
-          duration: formatDuration(s.durationMinutes),
-          date: s.date,
-          availability: s.availability.map((a: any) => ({
-            classType: a.classType,
-            className:
-              a.classType === "1ST"
-                ? "First Class"
-                : a.classType === "2ND"
-                  ? "Second Class"
-                  : "Third Class",
-            availableSeats: a.availableSeats,
-            totalSeats: a.totalSeats || 0,
-            price: a.price,
-          })),
-        }));
+        const results = searchResults.map((result) =>
+          mapSearchResultToBookingSearchResult(result, params.date, params.passengers)
+        );
 
         setSearchResults(results);
         return results;
       } catch (error: any) {
         toast({
           title: "Search Failed",
-          description: error.message || "Failed to search trains",
+          description: error.response?.data?.error || error.message || "Failed to search trains",
           variant: "destructive",
         });
         return [];
@@ -79,18 +91,21 @@ export const useBooking = () => {
   );
 
   const createBooking = useCallback(
-    (
-      _userId: string,
+    async (
       scheduleId: string,
       trainId: string,
+      fromStationId: string,
+      toStationId: string,
       travelDate: string,
       seats: BookedSeat[],
       passengerDetails: PassengerDetails,
-    ): Booking | null => {
+    ): Promise<Booking | null> => {
       try {
-        const booking = bookingService.createBooking({
+        const booking = await bookingService.createBooking({
           scheduleId,
           trainId,
+          fromStationId,
+          toStationId,
           travelDate,
           seats,
           passengerDetails,
@@ -105,7 +120,7 @@ export const useBooking = () => {
       } catch (error: any) {
         toast({
           title: "Booking Failed",
-          description: error.message || "Failed to create booking",
+          description: error.response?.data?.error || error.message || "Failed to create booking",
           variant: "destructive",
         });
         return null;
@@ -114,13 +129,13 @@ export const useBooking = () => {
     [toast],
   );
 
-  const getUserBookings = useCallback((): Booking[] => {
+  const getUserBookings = useCallback(async (): Promise<Booking[]> => {
     try {
-      return bookingService.getMyBookings();
+      return await bookingService.getMyBookings();
     } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to fetch your bookings",
+        description: error.response?.data?.error || "Failed to fetch your bookings",
         variant: "destructive",
       });
       return [];
@@ -128,9 +143,9 @@ export const useBooking = () => {
   }, [toast]);
 
   const cancelBooking = useCallback(
-    (bookingId: string): boolean => {
+    async (bookingId: string): Promise<boolean> => {
       try {
-        bookingService.cancelBooking(bookingId);
+        await bookingService.cancelBooking(bookingId);
         toast({
           title: "Booking Cancelled",
           description: "Your booking has been successfully cancelled.",
@@ -139,7 +154,7 @@ export const useBooking = () => {
       } catch (error: any) {
         toast({
           title: "Cancellation Failed",
-          description: error.message || "Failed to cancel booking",
+          description: error.response?.data?.error || error.message || "Failed to cancel booking",
           variant: "destructive",
         });
         return false;

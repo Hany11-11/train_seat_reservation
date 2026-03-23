@@ -16,7 +16,7 @@ export const Seat = ({
   isSelected = false, 
   onClick, 
   disabled = false,
-  size = 'md' 
+  size = 'md'
 }: SeatProps) => {
   const isClickable = status === 'available' && !disabled;
   const showAsSelected = isSelected || status === 'selected';

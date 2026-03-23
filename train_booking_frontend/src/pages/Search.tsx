@@ -5,14 +5,15 @@ import { TrainSearchForm } from "@/components/organisms/TrainSearchForm";
 import { Button } from "@/components/atoms/Button";
 import { useBooking, SearchParams } from "@/hooks/useBooking";
 import { useAuth } from "@/hooks/useAuth";
+import AnimatedTrainBackground from "@/components/atoms/AnimatedTrainBackground";
 
 const Search = () => {
   const navigate = useNavigate();
   const { searchTrains } = useBooking();
   const { user, isAuthenticated, isAdmin, logout } = useAuth();
 
-  const handleSearch = (params: SearchParams) => {
-    const results = searchTrains(params);
+  const handleSearch = async (params: SearchParams) => {
+    const results = await searchTrains(params);
     navigate("/results", {
       state: {
         searchParams: params,
@@ -83,8 +84,11 @@ const Search = () => {
       </header>
 
       {/* Hero Section */}
-      <section className="gradient-hero py-20 px-4">
-        <div className="container mx-auto text-center">
+      <section
+        className="gradient-hero px-4 relative overflow-hidden flex flex-col justify-center items-center"
+        style={{ minHeight: 340 }}
+      >
+        <div className="container mx-auto text-center relative z-10 pt-10 pb-16">
           <h2 className="text-4xl md:text-5xl font-bold text-primary-foreground mb-4">
             Book Your Train Journey
           </h2>

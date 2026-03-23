@@ -1,25 +1,42 @@
+import { useState, useEffect } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import { Train, Calendar, LogOut, Ticket } from "lucide-react";
+import { Train, Calendar, LogOut, Ticket, Loader2 } from "lucide-react";
 import { Button } from "@/components/atoms/Button";
 import { Badge } from "@/components/atoms/Badge";
 import { useAuth } from "@/hooks/useAuth";
 import { useBooking } from "@/hooks/useBooking";
 import { formatDate, formatCurrency } from "@/utils/fareCalculator";
+import { Booking } from "@/types/booking";
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { user, logout, isAuthenticated, isLoading } = useAuth();
+  const { user, logout, isAuthenticated, isLoading: authLoading } = useAuth();
   const { getUserBookings } = useBooking();
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  if (isLoading) {
+  useEffect(() => {
+    const fetchBookings = async () => {
+      if (!isAuthenticated) return;
+      setIsLoading(true);
+      try {
+        const data = await getUserBookings();
+        setBookings(data);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void fetchBookings();
+  }, [getUserBookings, isAuthenticated]);
+
+  if (authLoading) {
     return null;
   }
 
   if (!isAuthenticated || !user) {
     return <Navigate to="/login" replace />;
   }
-
-  const bookings = getUserBookings(user.id);
 
   const handleLogout = () => {
     logout();
@@ -54,7 +71,11 @@ const Dashboard = () => {
           <Button onClick={() => navigate("/")}>Book New Trip</Button>
         </div>
 
-        {bookings.length === 0 ? (
+        {isLoading ? (
+          <div className="flex justify-center items-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-accent" />
+          </div>
+        ) : bookings.length === 0 ? (
           <div className="bg-card rounded-xl border border-border p-12 text-center">
             <Ticket className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">No bookings yet</h3>

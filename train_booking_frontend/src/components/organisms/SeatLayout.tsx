@@ -1,16 +1,16 @@
 import { useMemo } from 'react';
-import { CoachWithSeats, Seat as SeatType } from '@/types/seat';
 import { SeatRow } from '@/components/molecules/SeatRow';
 import { Badge } from '@/components/atoms/Badge';
 import { Seat } from '@/components/atoms/Seat';
 import { cn } from '@/lib/utils';
+import { CoachWithSeats, SeatAvailability } from '@/services/seatService';
 
 interface SeatLayoutProps {
   coaches: CoachWithSeats[];
   activeCoachId: string | null;
   selectedSeatIds: string[];
   onCoachSelect: (coachId: string) => void;
-  onSeatClick: (seat: SeatType) => void;
+  onSeatClick: (seat: SeatAvailability) => void;
 }
 
 export const SeatLayout = ({
@@ -24,7 +24,7 @@ export const SeatLayout = ({
     if (!activeCoachId && coaches.length > 0) {
       return coaches[0];
     }
-    return coaches.find(c => c.id === activeCoachId) || null;
+    return coaches.find(c => c.coachId === activeCoachId) || null;
   }, [activeCoachId, coaches]);
 
   const seatsByRow = useMemo(() => {
@@ -33,7 +33,7 @@ export const SeatLayout = ({
       if (!acc[seat.row]) acc[seat.row] = [];
       acc[seat.row].push(seat);
       return acc;
-    }, {} as Record<number, SeatType[]>);
+    }, {} as Record<number, SeatAvailability[]>);
   }, [activeCoach]);
 
   const getClassBadgeVariant = (classType: string) => {
@@ -52,13 +52,12 @@ export const SeatLayout = ({
         <h3 className="text-sm font-medium text-muted-foreground mb-3">Select Coach</h3>
         <div className="flex flex-wrap gap-2">
           {coaches.map(coach => {
-            const availableSeats = coach.seats.filter(s => s.status === 'available').length;
-            const isActive = activeCoach?.id === coach.id;
+            const isActive = activeCoach?.coachId === coach.coachId;
             
             return (
               <button
-                key={coach.id}
-                onClick={() => onCoachSelect(coach.id)}
+                key={coach.coachId}
+                onClick={() => onCoachSelect(coach.coachId)}
                 className={cn(
                   'px-4 py-2 rounded-lg border-2 transition-all',
                   isActive
@@ -67,13 +66,13 @@ export const SeatLayout = ({
                 )}
               >
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold">{coach.name}</span>
+                  <span className="font-semibold">{coach.coachName}</span>
                   <Badge variant={getClassBadgeVariant(coach.classType)} size="sm">
                     {coach.classType}
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {availableSeats} / {coach.totalSeats} available
+                  {coach.availableSeats} / {coach.totalSeats} available
                 </p>
               </button>
             );
@@ -116,10 +115,10 @@ export const SeatLayout = ({
             <div className="space-y-1">
               {Object.entries(seatsByRow)
                 .sort(([a], [b]) => parseInt(a) - parseInt(b))
-                .map(([rowNum, seats]) => (
+                .map(([rowNum]) => (
                   <SeatRow
                     key={rowNum}
-                    seats={seats.sort((a, b) => a.column - b.column)}
+                    seats={seatsByRow[rowNum]}
                     selectedSeatIds={selectedSeatIds}
                     onSeatClick={onSeatClick}
                     layout={activeCoach.layout}

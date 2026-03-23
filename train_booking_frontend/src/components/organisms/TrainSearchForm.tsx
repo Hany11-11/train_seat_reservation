@@ -1,11 +1,26 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Search, Calendar, Users, MapPin, ArrowRightLeft } from 'lucide-react';
-import { Button } from '@/components/atoms/Button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/atoms/Select';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/atoms/Input';
-import { STATIONS } from '@/types/schedule';
+import { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  Search,
+  Calendar,
+  Users,
+  MapPin,
+  ArrowRightLeft,
+  RotateCcw,
+} from "lucide-react";
+import { Button } from "@/components/atoms/Button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/atoms/Select";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/atoms/Input";
+import { useStations } from "@/hooks/useStations";
+import { SearchableSelect } from "@/components/molecules/SearchableSelect";
+import { DatePicker } from "@/components/molecules/DatePicker";
 
 interface TrainSearchFormProps {
   onSearch: (params: {
@@ -14,15 +29,30 @@ interface TrainSearchFormProps {
     date: string;
     passengers: number;
   }) => void;
+  initialValues?: {
+    fromStationId?: string;
+    toStationId?: string;
+    date?: string;
+    passengers?: number;
+  };
 }
 
-export const TrainSearchForm = ({ onSearch }: TrainSearchFormProps) => {
-  const [fromStation, setFromStation] = useState('');
-  const [toStation, setToStation] = useState('');
-  const [date, setDate] = useState('');
-  const [passengers, setPassengers] = useState('1');
+export const TrainSearchForm = ({
+  onSearch,
+  initialValues,
+}: TrainSearchFormProps) => {
+  const [fromStation, setFromStation] = useState(
+    initialValues?.fromStationId || "",
+  );
+  const [toStation, setToStation] = useState(initialValues?.toStationId || "");
+  const [date, setDate] = useState(initialValues?.date || "");
+  const [passengers, setPassengers] = useState(
+    initialValues?.passengers?.toString() || "1",
+  );
+  const { stations, loading } = useStations();
 
-  const today = new Date().toISOString().split('T')[0];
+  const formRef = useRef<HTMLFormElement>(null);
+  const today = new Date().toISOString().split("T")[0];
 
   const handleSwapStations = () => {
     const temp = fromStation;
@@ -42,113 +72,127 @@ export const TrainSearchForm = ({ onSearch }: TrainSearchFormProps) => {
     }
   };
 
-  return (
-    <form onSubmit={handleSubmit} className="bg-card rounded-2xl border border-border p-6 shadow-lg">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
-        {/* From Station */}
-        <div className="space-y-2">
-          <Label className="flex items-center gap-2 text-sm font-medium">
-            <MapPin className="w-4 h-4 text-primary" />
-            From
-          </Label>
-          <Select value={fromStation} onValueChange={setFromStation}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select station" />
-            </SelectTrigger>
-            <SelectContent>
-              {STATIONS.map(station => (
-                <SelectItem 
-                  key={station.id} 
-                  value={station.id}
-                  disabled={station.id === toStation}
-                >
-                  {station.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+  const handleReset = () => {
+    setFromStation("");
+    setToStation("");
+    setDate("");
+    setPassengers("1");
+  };
 
-        {/* Swap Button */}
-        <div className="hidden lg:flex justify-center pb-2">
+  // Smooth scroll when station select is opened
+  const handleStationSelectOpen = (open: boolean) => {
+    if (open && formRef.current) {
+      formRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  };
+
+  return (
+    <form
+      ref={formRef}
+      onSubmit={handleSubmit}
+      className="bg-card rounded-2xl border border-border p-6 shadow-lg max-w-5xl mx-auto"
+    >
+      <div className="space-y-4">
+        {/* Row 1: From, To, Date */}
+        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
+          {/* From */}
+          <div className="flex-1 w-full space-y-1.5">
+            <Label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <MapPin className="w-3 h-3 text-primary" />
+              From
+            </Label>
+            <SearchableSelect
+              value={fromStation}
+              onValueChange={setFromStation}
+              stations={stations}
+              excludeId={toStation}
+              placeholder="Choose station"
+              label="From"
+              onOpenChange={handleStationSelectOpen}
+            />
+          </div>
+
+          {/* Swap */}
           <button
             type="button"
             onClick={handleSwapStations}
-            className="p-2 rounded-full bg-secondary hover:bg-secondary/80 transition-colors"
+            className="shrink-0 p-2 rounded-full bg-secondary hover:bg-secondary/80 transition-colors"
           >
             <ArrowRightLeft className="w-4 h-4 text-muted-foreground" />
           </button>
+
+          {/* To */}
+          <div className="flex-1 w-full space-y-1.5">
+            <Label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <MapPin className="w-3 h-3 text-accent" />
+              To
+            </Label>
+            <SearchableSelect
+              value={toStation}
+              onValueChange={setToStation}
+              stations={stations}
+              excludeId={fromStation}
+              placeholder="Choose station"
+              label="To"
+              onOpenChange={handleStationSelectOpen}
+            />
+          </div>
+
+          {/* Date */}
+          <div className="w-full sm:w-44 space-y-1.5">
+            <Label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <Calendar className="w-3 h-3 text-primary" />
+              Date
+            </Label>
+            <DatePicker
+              value={date}
+              onChange={setDate}
+              minDate={today}
+              placeholder="Select date"
+            />
+          </div>
         </div>
 
-        {/* To Station */}
-        <div className="space-y-2">
-          <Label className="flex items-center gap-2 text-sm font-medium">
-            <MapPin className="w-4 h-4 text-accent" />
-            To
-          </Label>
-          <Select value={toStation} onValueChange={setToStation}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select station" />
-            </SelectTrigger>
-            <SelectContent>
-              {STATIONS.map(station => (
-                <SelectItem 
-                  key={station.id} 
-                  value={station.id}
-                  disabled={station.id === fromStation}
-                >
-                  {station.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Date */}
-        <div className="space-y-2">
-          <Label className="flex items-center gap-2 text-sm font-medium">
-            <Calendar className="w-4 h-4 text-primary" />
-            Date
-          </Label>
-          <Input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            min={today}
-          />
-        </div>
-
-        {/* Passengers */}
-        <div className="space-y-2">
-          <Label className="flex items-center gap-2 text-sm font-medium">
-            <Users className="w-4 h-4 text-primary" />
+        {/* Row 2: Under From - Passengers */}
+        <div className="w-full sm:w-48 space-y-1.5">
+          <Label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <Users className="w-3 h-3 text-primary" />
             Passengers
           </Label>
           <Select value={passengers} onValueChange={setPassengers}>
-            <SelectTrigger>
+            <SelectTrigger className="w-full h-11 bg-background/50">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {[1, 2, 3, 4, 5, 6].map(num => (
+              {[1, 2, 3, 4, 5, 6].map((num) => (
                 <SelectItem key={num} value={num.toString()}>
-                  {num} {num === 1 ? 'Passenger' : 'Passengers'}
+                  {num} {num === 1 ? "Passenger" : "Passengers"}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
-      </div>
 
-      {/* Search Button */}
-      <div className="mt-6">
-        <Button 
-          type="submit" 
-          className="w-full md:w-auto px-8 bg-accent hover:bg-accent/90 text-accent-foreground font-semibold"
-          disabled={!fromStation || !toStation || !date}
-        >
-          <Search className="w-4 h-4 mr-2" />
-          Search Trains
-        </Button>
+        {/* Buttons Row */}
+        <div className="flex justify-end gap-3">
+          <Button
+            type="button"
+            onClick={handleReset}
+            variant="outline"
+            className="h-11 border-primary/30 text-primary hover:bg-primary/10"
+          >
+            <RotateCcw className="w-4 h-4 mr-2" />
+            Reset
+          </Button>
+          <Button
+            type="submit"
+            className="h-11 bg-accent hover:bg-accent/90 font-semibold"
+            disabled={!fromStation || !toStation || !date}
+          >
+            <Search className="w-4 h-4 mr-2" />
+            Search Trains
+          </Button>
+        </div>
       </div>
     </form>
   );
