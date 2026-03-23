@@ -4,6 +4,12 @@ import morgan from "morgan";
 import helmet from "helmet";
 
 import authRoutes from "./routes/auth.routes.js";
+import trainRoutes from "./routes/train.routes.js";
+import seatRoutes from "./routes/seat.routes.js";
+import stationRoutes from "./routes/station.routes.js";
+import scheduleRoutes from "./routes/schedule.routes.js";
+import priceRoutes from "./routes/price.routes.js";
+import bookingRoutes from "./routes/booking.routes.js";
 import { notFoundHandler } from "./middlewares/notFound.middleware.js";
 import { errorHandler } from "./middlewares/error.middleware.js";
 
@@ -38,6 +44,12 @@ app.get("/api/health", (_req, res) => {
   res.status(200).json({ success: true, message: "Backend is healthy" });
 });
 
+app.use("/api/trains", trainRoutes);
+app.use("/api/seats", seatRoutes);
+app.use("/api/stations", stationRoutes);
+app.use("/api/schedules", scheduleRoutes);
+app.use("/api/prices", priceRoutes);
+app.use("/api/bookings", bookingRoutes);
 app.use("/api/auth", authRoutes);
 
 app.use(notFoundHandler);
