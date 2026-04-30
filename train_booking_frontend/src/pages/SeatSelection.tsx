@@ -1,9 +1,9 @@
-import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
-import { Button } from '@/components/atoms/Button';
-import { SeatLayout } from '@/components/organisms/SeatLayout';
-import { BookingSummary } from '@/components/organisms/BookingSummary';
-import { useSeatSelection } from '@/hooks/useSeatSelection';
+import { useLocation, useNavigate } from "react-router-dom";
+import { ArrowLeft, ArrowRight } from "lucide-react";
+import { Button } from "@/components/atoms/Button";
+import { SeatLayout } from "@/components/organisms/SeatLayout";
+import { BookingSummary } from "@/components/organisms/BookingSummary";
+import { useSeatSelection } from "@/hooks/useSeatSelection";
 
 const SeatSelection = () => {
   const location = useLocation();
@@ -21,20 +21,20 @@ const SeatSelection = () => {
     toggleSeatSelection,
     getSelectedSeatsAsBookedSeats,
   } = useSeatSelection(
-    trainInfo?.scheduleId || '', 
-    trainInfo?.date || '', 
+    trainInfo?.scheduleId || "",
+    trainInfo?.date || "",
     selectedClass,
     ticketPrice,
-    passengers
+    passengers,
   );
 
   if (!trainInfo) {
-    navigate('/');
+    navigate("/");
     return null;
   }
 
   const handleContinue = () => {
-    navigate('/checkout', {
+    navigate("/checkout", {
       state: {
         trainInfo,
         selectedClass,
@@ -47,10 +47,14 @@ const SeatSelection = () => {
 
   const getClassName = (classType: string) => {
     switch (classType) {
-      case '1ST': return '1st Class';
-      case '2ND': return '2nd Class';
-      case '3RD': return '3rd Class';
-      default: return classType;
+      case "1ST":
+        return "1st Class";
+      case "2ND":
+        return "2nd Class";
+      case "3RD":
+        return "3rd Class";
+      default:
+        return classType;
     }
   };
 
@@ -68,14 +72,17 @@ const SeatSelection = () => {
       <main className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
-            <h2 className="text-2xl font-bold text-foreground mb-2">Select Your Seats</h2>
+            <h2 className="text-2xl font-bold text-foreground mb-2">
+              Select Your Seats
+            </h2>
             <p className="text-sm text-muted-foreground mb-6">
-              {trainInfo.trainName} - {getClassName(selectedClass)} - {trainInfo.date}
+              {trainInfo.trainName} - {getClassName(selectedClass)} -{" "}
+              {trainInfo.date}
             </p>
             <SeatLayout
               coaches={coaches}
               activeCoachId={activeCoachId}
-              selectedSeatIds={selectedSeats.map(s => s._id)}
+              selectedSeatIds={selectedSeats.map((s) => s._id)}
               onCoachSelect={setActiveCoachId}
               onSeatClick={toggleSeatSelection}
             />
@@ -94,11 +101,11 @@ const SeatSelection = () => {
               disabled={selectedSeats.length !== passengers}
               className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-semibold"
             >
-              {selectedSeats.length === 0 
-                ? 'Select Seats to Continue' 
-                : selectedSeats.length < passengers 
-                  ? `Select ${passengers - selectedSeats.length} More Seat${passengers - selectedSeats.length > 1 ? 's' : ''}`
-                  : 'Continue to Checkout'}
+              {selectedSeats.length === 0
+                ? "Select Seats to Continue"
+                : selectedSeats.length < passengers
+                  ? `Select ${passengers - selectedSeats.length} More Seat${passengers - selectedSeats.length > 1 ? "s" : ""}`
+                  : "Continue to Checkout"}
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </div>

@@ -99,6 +99,7 @@ export const useBooking = () => {
       travelDate: string,
       seats: BookedSeat[],
       passengerDetails: PassengerDetails,
+      userId?: string,
     ): Promise<Booking | null> => {
       try {
         const booking = await bookingService.createBooking({
@@ -109,6 +110,7 @@ export const useBooking = () => {
           travelDate,
           seats,
           passengerDetails,
+          userId,
         });
 
         toast({

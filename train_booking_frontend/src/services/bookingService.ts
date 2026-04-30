@@ -9,6 +9,7 @@ export interface CreateBookingPayload {
   travelDate: string;
   seats: BookedSeat[];
   passengerDetails: PassengerDetails;
+  userId?: string;
 }
 
 export interface BackendBookingResponse {
@@ -83,6 +84,7 @@ export const bookingService = {
         seats: payload.seats.length,
         seatNumbers: payload.seats.map(s => s.seatNumber),
         price: payload.seats.reduce((sum, s) => sum + s.price, 0),
+        ...(payload.userId && { userId: payload.userId }),
       }
     );
     return mapBackendToFrontend(response.data);

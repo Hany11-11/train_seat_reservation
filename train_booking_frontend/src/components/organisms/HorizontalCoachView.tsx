@@ -8,31 +8,11 @@ interface HorizontalCoachViewProps {
   onSeatClick: (seat: SeatAvailability) => void;
 }
 
-// ─── SLR Seat Numbering Logic ────────────────────────────────────────────────
-// Real SLR 2+2 layout:
-//   Row 0 (even): Left=1,2  Right=3,4
-//   Row 1 (odd):  Left=7,8  Right=5,6
-//   Row 2 (even): Left=9,10 Right=11,12
-//   Row 3 (odd):  Left=15,16 Right=13,14 … etc.
-function getSLRSeatNumbers(rowIndex: number): {
-  left: [number, number];
-  right: [number, number];
-} {
-  if (rowIndex % 2 === 0) {
-    const base = rowIndex * 4;
-    return { left: [base + 1, base + 2], right: [base + 3, base + 4] };
-  } else {
-    const base = rowIndex * 4;
-    return { left: [base + 3, base + 4], right: [base + 1, base + 2] };
-  }
-}
-
-// ─── Seat Cell ────────────────────────────────────────────────────────────────
 interface SeatCellProps {
   seat: SeatAvailability | null;
   displayNumber: number;
-  /** true = window seat (outermost), false = aisle seat */
   isWindow: boolean;
+  isAisle: boolean;
   isSelected: boolean;
   onSeatClick: (seat: SeatAvailability) => void;
 }
@@ -41,17 +21,13 @@ const SeatCell = ({
   seat,
   displayNumber,
   isWindow,
+  isAisle,
   isSelected,
   onSeatClick,
 }: SeatCellProps) => {
   if (!seat) {
-    return (
-      <div className="slr-seat slr-seat--empty">
-        <span>{displayNumber}</span>
-      </div>
-    );
+    return <div className="w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0" />;
   }
-
   const status = seat.status;
   const clickable = status === "available";
 
@@ -60,43 +36,56 @@ const SeatCell = ({
       type="button"
       onClick={clickable ? () => onSeatClick(seat) : undefined}
       disabled={!clickable}
-      aria-label={`Seat ${displayNumber} – ${isWindow ? "Window" : "Aisle"} – ${status}`}
+      aria-label={`Seat ${displayNumber}`}
       className={cn(
-        "slr-seat",
-        status === "available" && !isSelected && "slr-seat--available",
-        status === "available" && isSelected && "slr-seat--selected",
-        status === "booked" && "slr-seat--booked",
-        status === "unavailable" && "slr-seat--unavailable",
+        "relative group flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-lg transition-all duration-200 ease-out border-2 shadow-sm flex-shrink-0 overflow-hidden",
+        status === "available" &&
+          !isSelected &&
+          "bg-white border-emerald-400 hover:bg-emerald-50 hover:border-emerald-500 hover:shadow-md hover:-translate-y-[2px] hover:scale-105 active:scale-95 cursor-pointer",
+        isSelected &&
+          "bg-blue-600 border-blue-700 shadow-blue-500/40 shadow-md text-white scale-110 active:scale-95 z-10",
+        status === "booked" &&
+          "bg-red-50 border-red-200 cursor-not-allowed",
+        status === "unavailable" &&
+          "bg-gray-50 border-gray-200 opacity-50 cursor-not-allowed",
       )}
     >
-      {/* W / A corner badge */}
-      <span className="slr-seat__badge">{isWindow ? "W" : "A"}</span>
-      {/* Seat number */}
-      <span className="slr-seat__num">{displayNumber}</span>
+      {/* Seat Number */}
+      <span
+        className={cn(
+          "text-xs sm:text-sm font-bold z-10 transition-colors pointer-events-none",
+          status === "available" && !isSelected && "text-emerald-700",
+          isSelected && "text-white drop-shadow-sm",
+          status === "booked" && "text-red-400 opacity-80",
+          status === "unavailable" && "text-gray-400",
+        )}
+      >
+        {displayNumber}
+      </span>
+
+      {/* Badges (W / A) */}
+      {(isWindow || isAisle) && (
+        <span
+          className={cn(
+            "absolute top-[2px] right-[2px] text-[7px] sm:text-[9px] font-black leading-none pointer-events-none",
+            isWindow && status === "available" && !isSelected
+              ? "text-amber-500"
+              : "",
+            isAisle && status === "available" && !isSelected
+              ? "text-purple-500"
+              : "",
+            isSelected ? "text-blue-200" : "",
+            status === "booked" ? "text-red-300" : "",
+            status === "unavailable" ? "text-slate-400" : "",
+          )}
+        >
+          {isWindow ? "W" : "A"}
+        </span>
+      )}
     </button>
   );
 };
 
-// ─── Door End Panel ───────────────────────────────────────────────────────────
-const DoorEnd = ({
-  side,
-  hasToilet,
-}: {
-  side: "left" | "right";
-  hasToilet?: boolean;
-}) => (
-  <div className={cn("slr-end", `slr-end--${side}`)}>
-    <div className="slr-door-pill slr-door-pill--top">DOOR</div>
-
-    {hasToilet && <div className="slr-toilet-text">TOILET</div>}
-
-    <div className="slr-center-door">DOOR</div>
-
-    <div className="slr-door-pill slr-door-pill--bottom">DOOR</div>
-  </div>
-);
-
-// ─── Main Component ───────────────────────────────────────────────────────────
 export const HorizontalCoachView = ({
   coach,
   selectedSeatIds,
@@ -116,137 +105,135 @@ export const HorizontalCoachView = ({
       );
   }, [coach.seats]);
 
-  const totalRows = rows.length;
-  const midRow = Math.floor(totalRows / 2);
-
   return (
-    <div className="slr-coach-wrapper">
-      {/* ── Direction Banner ─────────────────────────────────── */}
-      <div className="slr-direction-banner">
-        <div className="slr-direction-label">
-          <span className="slr-arrow slr-arrow--left">◀◀</span>
-          <span>Seat Direction</span>
-          <span className="slr-arrow slr-arrow--right">▶▶</span>
+    <div className="w-full flex flex-col items-center py-4">
+      {/* Travel Direction Animation */}
+      <div className="w-full flex justify-center mb-8 relative z-10 text-center">
+        <div className="flex items-center">
+          {/* Animated Chevrons pointing Left */}
+          <div className="flex -space-x-2 mr-3 opacity-90">
+            <svg
+              className="w-5 sm:w-6 h-5 sm:h-6 text-blue-500 animate-pulse"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={3}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M15 19l-7-7 7-7"
+              />
+            </svg>
+            <svg
+              className="w-5 sm:w-6 h-5 sm:h-6 text-blue-400 animate-pulse"
+              style={{ animationDelay: "150ms" }}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={3}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M15 19l-7-7 7-7"
+              />
+            </svg>
+            <svg
+              className="w-5 sm:w-6 h-5 sm:h-6 text-blue-300 animate-pulse"
+              style={{ animationDelay: "300ms" }}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={3}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M15 19l-7-7 7-7"
+              />
+            </svg>
+          </div>
+
+          <span className="text-[10px] sm:text-[11px] font-black tracking-[0.25em] text-zinc-400 uppercase">
+            Seat Direction
+          </span>
         </div>
       </div>
 
-      {/* ── W / A Legend ─────────────────────────────────────── */}
-      <div className="slr-wa-legend">
-        <span className="slr-wa-legend__item slr-wa-legend__item--w">
-          <span className="slr-wa-badge slr-wa-badge--tl">W</span> Window Seat
-        </span>
-        <span className="slr-wa-legend__item slr-wa-legend__item--a">
-          <span className="slr-wa-badge slr-wa-badge--tr">A</span> Aisle Seat
-        </span>
-      </div>
+      {/* Fixed-Place Horizontal Train Wrapper (Flex-Wrap) */}
+      <div className="w-full bg-gradient-to-b from-zinc-50 to-zinc-100 rounded-[2.5rem] p-4 sm:p-8 shadow-xl shadow-zinc-200/50 border-[6px] border-zinc-200/80 ring-4 sm:ring-8 ring-zinc-50 relative overflow-hidden flex flex-col items-center">
+        {/* Texture */}
+        <div
+          className="absolute inset-0 opacity-5 pointer-events-none"
+          style={{
+            backgroundImage: "radial-gradient(#000 1px, transparent 1px)",
+            backgroundSize: "16px 16px",
+          }}
+        />
 
-      {/* ── Coach Shell ──────────────────────────────────────── */}
-      <div className="slr-coach-scroll">
-        <div className="slr-coach">
-          {/* ╔═ LEFT END: DOOR + TOILET ════════════════════════╗ */}
-          <DoorEnd side="left" hasToilet />
+        {/* Seat grid (Horizontally laid out, but wraps on narrow screens) */}
+        <div className="flex flex-row flex-wrap justify-center w-full relative z-10 gap-x-2 gap-y-8 sm:gap-x-4 sm:gap-y-12">
+          {rows.map((rowSeats, rowIdx) => {
+            // Horizontal View: LeftSeats are TOP, RightSeats are BOTTOM
+            const topSeats = rowSeats.slice(0, 2);
+            const bottomSeats = rowSeats.slice(2, 4);
 
-          {/* ╠═ SEAT BODY ══════════════════════════════════════╣ */}
-          <div className="slr-seats-section">
-            {/* Window row label */}
-            <div className="slr-rail slr-rail--top">Window Side</div>
+            return (
+              <div
+                key={rowIdx}
+                className="flex flex-col items-center w-8 sm:w-10 relative"
+              >
+                {/* Optional column indicator */}
+                <span className="absolute -top-5 text-[8px] sm:text-[10px] font-bold text-zinc-300 pointer-events-none">
+                  {rowIdx + 1}
+                </span>
 
-            {/* Seat grid */}
-            <div className="slr-seat-grid">
-              {rows.map((rowSeats, rowIdx) => {
-                const leftSeats = rowSeats.slice(0, 2);
-                const rightSeats = rowSeats.slice(2, 4);
+                {/* Top Side Seats */}
+                <div className="flex flex-col gap-1.5 sm:gap-2">
+                  {topSeats.map((seat, i) => (
+                    <SeatCell
+                      key={seat?._id || i}
+                      seat={seat ?? null}
+                      displayNumber={
+                        seat?.seatNumber ? Number(seat.seatNumber) : 0
+                      }
+                      isWindow={i === 0} // Top-most is window
+                      isAisle={i === 1} // Inner is aisle
+                      isSelected={
+                        seat ? selectedSeatIds.includes(seat._id) : false
+                      }
+                      onSeatClick={onSeatClick}
+                    />
+                  ))}
+                </div>
 
-                return (
-                  <div key={rowIdx} className="slr-column">
-                    {/* Upper bank: 2 window-side seats */}
-                    <div className="slr-bank slr-bank--upper">
-                      <SeatCell
-                        seat={leftSeats[0] ?? null}
-                        displayNumber={
-                          leftSeats[0]?.seatNumber
-                            ? Number(leftSeats[0].seatNumber)
-                            : 0
-                        }
-                        isWindow={true}
-                        isSelected={
-                          leftSeats[0]
-                            ? selectedSeatIds.includes(leftSeats[0]._id)
-                            : false
-                        }
-                        onSeatClick={onSeatClick}
-                      />
-                      <SeatCell
-                        seat={leftSeats[1] ?? null}
-                        displayNumber={
-                          leftSeats[1]?.seatNumber
-                            ? Number(leftSeats[1].seatNumber)
-                            : 0
-                        }
-                        isWindow={false}
-                        isSelected={
-                          leftSeats[1]
-                            ? selectedSeatIds.includes(leftSeats[1]._id)
-                            : false
-                        }
-                        onSeatClick={onSeatClick}
-                      />
-                    </div>
+                {/* Center Aisle Indicator */}
+                <div className="h-6 sm:h-8 w-full flex items-center justify-center relative my-1">
+                  <div className="w-full h-1.5 bg-zinc-200/80 rounded-full" />
+                </div>
 
-                    {/* Aisle gap */}
-                    <div className="slr-aisle-marker">
-                      {rowIdx === midRow && (
-                        <span className="slr-direction-arrow">▲▼</span>
-                      )}
-                    </div>
-
-                    {/* Lower bank: 2 aisle-side seats */}
-                    <div className="slr-bank slr-bank--lower">
-                      <SeatCell
-                        seat={rightSeats[0] ?? null}
-                        displayNumber={
-                          rightSeats[0]?.seatNumber
-                            ? Number(rightSeats[0].seatNumber)
-                            : 0
-                        }
-                        isWindow={false}
-                        isSelected={
-                          rightSeats[0]
-                            ? selectedSeatIds.includes(rightSeats[0]._id)
-                            : false
-                        }
-                        onSeatClick={onSeatClick}
-                      />
-                      <SeatCell
-                        seat={rightSeats[1] ?? null}
-                        displayNumber={
-                          rightSeats[1]?.seatNumber
-                            ? Number(rightSeats[1].seatNumber)
-                            : 0
-                        }
-                        isWindow={true}
-                        isSelected={
-                          rightSeats[1]
-                            ? selectedSeatIds.includes(rightSeats[1]._id)
-                            : false
-                        }
-                        onSeatClick={onSeatClick}
-                      />
-                    </div>
-
-                    {/* Row label */}
-                    <div className="slr-col-label">R{rowIdx + 1}</div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* window row label */}
-            <div className="slr-rail slr-rail--bottom">Window Side</div>
-          </div>
-
-          {/* ╚═ RIGHT END: DOOR ONLY ══════════════════════════╝ */}
-          <DoorEnd side="right" />
+                {/* Bottom Side Seats */}
+                <div className="flex flex-col gap-1.5 sm:gap-2">
+                  {bottomSeats.map((seat, i) => (
+                    <SeatCell
+                      key={seat?._id || i}
+                      seat={seat ?? null}
+                      displayNumber={
+                        seat?.seatNumber ? Number(seat.seatNumber) : 0
+                      }
+                      isWindow={i === 1} // Bottom-most is window
+                      isAisle={i === 0} // Inner is aisle
+                      isSelected={
+                        seat ? selectedSeatIds.includes(seat._id) : false
+                      }
+                      onSeatClick={onSeatClick}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

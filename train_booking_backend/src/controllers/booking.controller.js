@@ -1,13 +1,17 @@
 import mongoose from "mongoose";
 import Booking from "../models/booking.model.js";
 import Availability from "../models/availability.model.js";
+import User from "../models/user.model.js";
 
-// Create a new booking
+// Create a new booking (supports both authenticated and guest users)
 
 export const createBooking = async (req, res) => {
   try {
-    const userId = req.auth.userId;
+    let userId = req.auth?.userId || null;
+    
     const {
+      userId: providedUserId,
+      nic,
       schedule,
       fromStation,
       toStation,
@@ -17,6 +21,17 @@ export const createBooking = async (req, res) => {
       seatNumbers,
       price,
     } = req.body;
+
+    if (!userId && providedUserId) {
+      userId = providedUserId;
+    }
+
+    if (!userId && nic) {
+      const existingUser = await User.findOne({ nic });
+      if (existingUser) {
+        userId = existingUser._id;
+      }
+    }
     // Find or create availability
     let availability = await Availability.findOne({
       schedule,

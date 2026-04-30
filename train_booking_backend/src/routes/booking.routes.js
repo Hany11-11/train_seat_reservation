@@ -10,8 +10,8 @@ import { requireAuth } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
-// Create booking (requires auth)
-router.post("/", requireAuth, createBooking);
+// Create booking (auth optional - allows guest bookings)
+router.post("/", createBooking);
 // Cancel booking (requires auth)
 router.put("/:id/cancel", requireAuth, cancelBooking);
 // Get all bookings (admin only)
